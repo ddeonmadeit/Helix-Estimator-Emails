@@ -1,0 +1,24 @@
+{
+  "locations": [
+    { "slug": "sydney", "label": "Sydney", "state": "NSW" },
+    { "slug": "melbourne", "label": "Melbourne", "state": "VIC" },
+    { "slug": "brisbane", "label": "Brisbane", "state": "QLD" },
+    { "slug": "perth", "label": "Perth", "state": "WA" },
+    { "slug": "adelaide", "label": "Adelaide", "state": "SA" },
+    { "slug": "gold-coast", "label": "Gold Coast", "state": "QLD" },
+    { "slug": "canberra", "label": "Canberra", "state": "ACT" },
+    { "slug": "newcastle", "label": "Newcastle", "state": "NSW" },
+    { "slug": "wollongong", "label": "Wollongong", "state": "NSW" },
+    { "slug": "hobart", "label": "Hobart", "state": "TAS" },
+    { "slug": "geelong", "label": "Geelong", "state": "VIC" },
+    { "slug": "townsville", "label": "Townsville", "state": "QLD" },
+    { "slug": "cairns", "label": "Cairns", "state": "QLD" },
+    { "slug": "darwin", "label": "Darwin", "state": "NT" },
+    { "slug": "toowoomba", "label": "Toowoomba", "state": "QLD" },
+    { "slug": "ballarat", "label": "Ballarat", "state": "VIC" },
+    { "slug": "bendigo", "label": "Bendigo", "state": "VIC" },
+    { "slug": "sunshine-coast", "label": "Sunshine Coast", "state": "QLD" },
+    { "slug": "launceston", "label": "Launceston", "state": "TAS" },
+    { "slug": "central-coast", "label": "Central Coast", "state": "NSW" }
+  ]
+}
