@@ -4,15 +4,16 @@ const { fetchWithRetry, randomDelay } = require('./proxyRotator');
 const { classifyEmail, isFreeDomain, scoreLead, detectHighEnd } = require('./qualityScorer');
 const pLimit = require('p-limit');
 
-const EMAIL_REGEX = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-const OBFUSCATED_REGEX = /[a-zA-Z0-9._%+-]+\s*\[?\s*(?:at|AT)\s*\]?\s*[a-zA-Z0-9.-]+\s*\[?\s*(?:dot|DOT)\s*\]?\s*[a-zA-Z]{2,}/g;
+const EMAIL_REGEX_GLOBAL = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+const EMAIL_REGEX_TEST = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+const OBFUSCATED_REGEX = /[a-zA-Z0-9._%+-]+\s*[(\[]?\s*(?:at|AT)\s*[)\]]?\s*[a-zA-Z0-9.-]+\s*[(\[]?\s*(?:dot|DOT)\s*[)\]]?\s*[a-zA-Z]{2,}/g;
 const NAME_REGEX = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\b/g;
 
 function extractEmails(html) {
   const emails = new Set();
 
   // Standard email regex
-  const matches = html.match(EMAIL_REGEX) || [];
+  const matches = html.match(EMAIL_REGEX_GLOBAL) || [];
   matches.forEach(e => emails.add(e.toLowerCase()));
 
   // Mailto links
@@ -25,8 +26,8 @@ function extractEmails(html) {
   // Obfuscated emails
   const obfuscated = html.match(OBFUSCATED_REGEX) || [];
   obfuscated.forEach(o => {
-    const cleaned = o.replace(/\s*\[?\s*(?:at|AT)\s*\]?\s*/g, '@').replace(/\s*\[?\s*(?:dot|DOT)\s*\]?\s*/g, '.');
-    if (EMAIL_REGEX.test(cleaned)) {
+    const cleaned = o.replace(/\s*[(\[]?\s*(?:at|AT)\s*[)\]]?\s*/g, '@').replace(/\s*[(\[]?\s*(?:dot|DOT)\s*[)\]]?\s*/g, '.');
+    if (cleaned && EMAIL_REGEX_TEST.test(cleaned)) {
       emails.add(cleaned.toLowerCase());
     }
   });
@@ -82,22 +83,24 @@ function extractOwnerName(html, $) {
   // Check meta author
   if ($) {
     const author = $('meta[name="author"]').attr('content');
-    if (author && NAME_REGEX.test(author)) {
+    if (author && /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2}\b/.test(author)) {
       return author.trim();
     }
 
     // Check JSON-LD
+    let jsonLdName = '';
     $('script[type="application/ld+json"]').each((_, el) => {
+      if (jsonLdName) return false; // break
       try {
         const data = JSON.parse($(el).html());
         if (data['@type'] === 'Person' && data.name) {
-          return data.name;
-        }
-        if (data.founder && data.founder.name) {
-          return data.founder.name;
+          jsonLdName = data.name;
+        } else if (data.founder && data.founder.name) {
+          jsonLdName = data.founder.name;
         }
       } catch {}
     });
+    if (jsonLdName) return jsonLdName;
   }
 
   return '';

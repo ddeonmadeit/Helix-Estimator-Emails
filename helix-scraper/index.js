@@ -92,10 +92,40 @@ async function main() {
   csvWriter.init(RESUME);
 
   let leadCount = csvWriter.leadCount;
-  const companyQueue = []; // { website, companyName, industry, location, source, email }
+  const companyQueue = [];
 
   const targetIndustries = filterIndustries();
   const targetLocations = filterLocations();
+
+  // Centralized lead-adding function — single sync point to prevent race conditions.
+  // Node.js is single-threaded so this is safe as long as we don't yield between
+  // the target check, dedup check, and the write.
+  function tryAddLead(lead) {
+    if (leadCount >= TARGET) return false;
+    if (!lead || !lead.email) return false;
+    if (dedup.hasEmail(lead.email)) return false;
+
+    dedup.addEmail(lead.email);
+    csvWriter.writeLead(lead);
+    leadCount++;
+    return true;
+  }
+
+  // Helper to build a lead from a directory email
+  function buildDirectoryLead(company, email, industryLabel, locationLabel, source) {
+    const emailType = classifyEmail(email);
+    return {
+      email,
+      ownerName: '',
+      companyName: company.companyName || '',
+      website: company.website || '',
+      industry: industryLabel,
+      location: locationLabel,
+      emailType,
+      qualityScore: emailType === 'personal' ? 3 : 2,
+      source
+    };
+  }
 
   // ═══════════════════════════════════
   // PHASE 1 — Directory Scraping
@@ -104,17 +134,18 @@ async function main() {
 
   const directoryLimit = pLimit(config.DIRECTORY_CONCURRENCY);
 
-  // Phase 1a — Yellow Pages
-  if (enabledSources.includes('yellowpages') && leadCount < TARGET) {
-    console.log(chalk.yellow('  → Yellow Pages Australia'));
-    const ypTasks = [];
+  async function scrapeDirectory(name, scrapeFn, sourceKey) {
+    if (!enabledSources.includes(sourceKey) || leadCount >= TARGET) return;
+
+    console.log(chalk.yellow(`  → ${name}`));
+    const tasks = [];
 
     for (const ind of targetIndustries) {
       for (const loc of targetLocations) {
-        ypTasks.push(directoryLimit(async () => {
+        tasks.push(directoryLimit(async () => {
           if (leadCount >= TARGET) return;
           try {
-            const companies = await scrapeYellowPages(ind.slug, loc.slug, VERBOSE);
+            const companies = await scrapeFn(ind.slug, loc.slug, VERBOSE);
             if (companies.length > 0) {
               console.log(chalk.green(`    ${ind.slug} / ${loc.slug} — ${companies.length} companies`));
             }
@@ -127,143 +158,28 @@ async function main() {
                   location: loc.label
                 });
               }
-              // If directory had an email directly
-              if (c.email && !dedup.hasEmail(c.email) && !isFreeDomain(c.email)) {
-                dedup.addEmail(c.email);
-                const emailType = classifyEmail(c.email);
-                const lead = {
-                  email: c.email,
-                  ownerName: '',
-                  companyName: c.companyName,
-                  website: c.website || '',
-                  industry: ind.label,
-                  location: loc.label,
-                  emailType,
-                  qualityScore: emailType === 'personal' ? 3 : 2,
-                  source: 'yellowpages'
-                };
-                csvWriter.writeLead(lead);
-                leadCount++;
-                if (VERBOSE) {
-                  const symbol = emailType === 'personal' ? chalk.green('✓') : chalk.yellow('~');
+              if (c.email && !isFreeDomain(c.email)) {
+                const lead = buildDirectoryLead(c, c.email, ind.label, loc.label, sourceKey);
+                if (tryAddLead(lead) && VERBOSE) {
+                  const symbol = lead.emailType === 'personal' ? chalk.green('✓') : chalk.yellow('~');
                   console.log(`    [${leadCount}/${TARGET}] ${symbol} ${c.email} (${c.companyName})`);
                 }
               }
             }
           } catch (err) {
-            logError(`YP ${ind.slug}/${loc.slug}: ${err.message}`);
+            logError(`${sourceKey} ${ind.slug}/${loc.slug}: ${err.message}`);
           }
         }));
       }
     }
 
-    await Promise.all(ypTasks);
+    await Promise.all(tasks);
     console.log(chalk.gray(`    Queue: ${companyQueue.length} domains | Leads: ${leadCount}\n`));
   }
 
-  // Phase 1b — TrueLocal
-  if (enabledSources.includes('truelocal') && leadCount < TARGET) {
-    console.log(chalk.yellow('  → TrueLocal'));
-    const tlTasks = [];
-
-    for (const ind of targetIndustries) {
-      for (const loc of targetLocations) {
-        tlTasks.push(directoryLimit(async () => {
-          if (leadCount >= TARGET) return;
-          try {
-            const companies = await scrapeTrueLocal(ind.slug, loc.slug, VERBOSE);
-            if (companies.length > 0) {
-              console.log(chalk.green(`    ${ind.slug} / ${loc.slug} — ${companies.length} companies`));
-            }
-            for (const c of companies) {
-              if (c.website && dedup.isDomainNew(c.website)) {
-                dedup.registerDomain(c.website);
-                companyQueue.push({
-                  ...c,
-                  industry: ind.label,
-                  location: loc.label
-                });
-              }
-              if (c.email && !dedup.hasEmail(c.email) && !isFreeDomain(c.email)) {
-                dedup.addEmail(c.email);
-                const emailType = classifyEmail(c.email);
-                const lead = {
-                  email: c.email,
-                  ownerName: '',
-                  companyName: c.companyName,
-                  website: c.website || '',
-                  industry: ind.label,
-                  location: loc.label,
-                  emailType,
-                  qualityScore: emailType === 'personal' ? 3 : 2,
-                  source: 'truelocal'
-                };
-                csvWriter.writeLead(lead);
-                leadCount++;
-              }
-            }
-          } catch (err) {
-            logError(`TL ${ind.slug}/${loc.slug}: ${err.message}`);
-          }
-        }));
-      }
-    }
-
-    await Promise.all(tlTasks);
-    console.log(chalk.gray(`    Queue: ${companyQueue.length} domains | Leads: ${leadCount}\n`));
-  }
-
-  // Phase 1c — Hotfrog
-  if (enabledSources.includes('hotfrog') && leadCount < TARGET) {
-    console.log(chalk.yellow('  → Hotfrog'));
-    const hfTasks = [];
-
-    for (const ind of targetIndustries) {
-      for (const loc of targetLocations) {
-        hfTasks.push(directoryLimit(async () => {
-          if (leadCount >= TARGET) return;
-          try {
-            const companies = await scrapeHotfrog(ind.slug, loc.slug, VERBOSE);
-            if (companies.length > 0) {
-              console.log(chalk.green(`    ${ind.slug} / ${loc.slug} — ${companies.length} companies`));
-            }
-            for (const c of companies) {
-              if (c.website && dedup.isDomainNew(c.website)) {
-                dedup.registerDomain(c.website);
-                companyQueue.push({
-                  ...c,
-                  industry: ind.label,
-                  location: loc.label
-                });
-              }
-              if (c.email && !dedup.hasEmail(c.email) && !isFreeDomain(c.email)) {
-                dedup.addEmail(c.email);
-                const emailType = classifyEmail(c.email);
-                const lead = {
-                  email: c.email,
-                  ownerName: '',
-                  companyName: c.companyName,
-                  website: c.website || '',
-                  industry: ind.label,
-                  location: loc.label,
-                  emailType,
-                  qualityScore: emailType === 'personal' ? 3 : 2,
-                  source: 'hotfrog'
-                };
-                csvWriter.writeLead(lead);
-                leadCount++;
-              }
-            }
-          } catch (err) {
-            logError(`HF ${ind.slug}/${loc.slug}: ${err.message}`);
-          }
-        }));
-      }
-    }
-
-    await Promise.all(hfTasks);
-    console.log(chalk.gray(`    Queue: ${companyQueue.length} domains | Leads: ${leadCount}\n`));
-  }
+  await scrapeDirectory('Yellow Pages Australia', scrapeYellowPages, 'yellowpages');
+  await scrapeDirectory('TrueLocal', scrapeTrueLocal, 'truelocal');
+  await scrapeDirectory('Hotfrog', scrapeHotfrog, 'hotfrog');
 
   // ═══════════════════════════════════
   // PHASE 2 — Website Email Extraction
@@ -280,11 +196,7 @@ async function main() {
           await randomDelay(config.SITE_DELAY_MIN, config.SITE_DELAY_MAX);
           const lead = await scrapeSite(company, VERBOSE);
 
-          if (lead && lead.email && !dedup.hasEmail(lead.email)) {
-            dedup.addEmail(lead.email);
-            csvWriter.writeLead(lead);
-            leadCount++;
-
+          if (tryAddLead(lead)) {
             const symbol = lead.emailType === 'personal'
               ? chalk.green('✓')
               : chalk.yellow('~');
@@ -314,7 +226,7 @@ async function main() {
   if (leadCount < TARGET) {
     console.log(chalk.bold.white(`\n[Phase 3] Supplemental search scraping (need ${TARGET - leadCount} more)...\n`));
 
-    const searchIndustries = targetIndustries.slice(0, 10); // Limit search scope
+    const searchIndustries = targetIndustries.slice(0, 10);
     const searchLocations = targetLocations.slice(0, 8);
 
     for (const ind of searchIndustries) {
@@ -380,10 +292,7 @@ async function main() {
               try {
                 await randomDelay(config.SITE_DELAY_MIN, config.SITE_DELAY_MAX);
                 const lead = await scrapeSite(company, VERBOSE);
-                if (lead && lead.email && !dedup.hasEmail(lead.email)) {
-                  dedup.addEmail(lead.email);
-                  csvWriter.writeLead(lead);
-                  leadCount++;
+                if (tryAddLead(lead)) {
                   const symbol = lead.emailType === 'personal'
                     ? chalk.green('✓')
                     : chalk.yellow('~');
