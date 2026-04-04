@@ -2,9 +2,8 @@
   "name": "helix-estimator-emails",
   "private": true,
   "scripts": {
-    "start": "cd helix-scraper && node server.js",
-    "install": "cd helix-scraper && npm install",
-    "build": "echo 'No build step needed'"
+    "start": "node helix-scraper/server.js",
+    "build": "npm install --prefix helix-scraper"
   },
   "engines": {
     "node": ">=18.0.0"

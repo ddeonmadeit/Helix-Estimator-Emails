@@ -1,1 +1,1 @@
-web: cd helix-scraper && node server.js
+web: node helix-scraper/server.js
