@@ -1022,7 +1022,78 @@
     $('logCount').textContent = logLines;
   }
 
-  function addLeadRow(lead) {
+  // ── Lead persistence via localStorage ──
+  const LEADS_KEY = 'helix_leads_v1';
+  const MAX_STORED = 1000;
+
+  // In-memory store (source of truth for the UI)
+  let cachedLeads = [];
+  // Set of emails for fast dedup
+  let cachedEmails = new Set();
+
+  function persistLeads() {
+    try {
+      localStorage.setItem(LEADS_KEY, JSON.stringify(cachedLeads));
+    } catch {}
+  }
+
+  function readLeadsFromStorage() {
+    try {
+      return JSON.parse(localStorage.getItem(LEADS_KEY) || '[]');
+    } catch { return []; }
+  }
+
+  // Merge an array of lead objects into cachedLeads, dedup by email
+  function mergeLeads(incoming) {
+    let added = 0;
+    for (const lead of incoming) {
+      const key = (lead.email || '').toLowerCase();
+      if (!key || cachedEmails.has(key)) continue;
+      cachedEmails.add(key);
+      cachedLeads.push(lead);
+      added++;
+    }
+    // Keep only the most recent MAX_STORED
+    if (cachedLeads.length > MAX_STORED) {
+      const trimmed = cachedLeads.slice(-MAX_STORED);
+      trimmed.forEach(l => cachedEmails.add((l.email || '').toLowerCase()));
+      cachedLeads = trimmed;
+    }
+    return added;
+  }
+
+  // Render the table from cachedLeads (newest first, max 100 rows)
+  function renderLeadsTable() {
+    const tbody = $('leadsBody');
+    tbody.innerHTML = '';
+    const toShow = cachedLeads.slice(-100).reverse();
+    toShow.forEach(lead => {
+      const tr = document.createElement('tr');
+      const typeCls = lead.emailType === 'personal' ? 'type-personal' : 'type-generic';
+      const q = lead.qualityScore || 0;
+      let pips = '';
+      for (let i = 1; i <= 5; i++) {
+        const cls = i <= q ? (q >= 4 ? 'on' : q >= 2 ? 'on mid' : 'on low') : '';
+        pips += `<div class="q-pip ${cls}"></div>`;
+      }
+      tr.innerHTML = `
+        <td title="${esc(lead.email)}">${esc(lead.email)}</td>
+        <td title="${esc(lead.companyName)}">${esc(lead.companyName || '—')}</td>
+        <td><span class="type-badge ${typeCls}">${lead.emailType}</span></td>
+        <td><div class="quality-bar">${pips}</div></td>
+        <td>${esc(lead.source || '')}</td>`;
+      tbody.appendChild(tr);
+    });
+    const total = cachedLeads.length;
+    $('leadTableCount').textContent = total > 100 ? `${total} total · 100 shown` : total;
+  }
+
+  // Add a single live lead (from SSE) — prepend to table without full re-render
+  function addLiveLead(lead) {
+    const added = mergeLeads([lead]);
+    if (!added) return; // duplicate
+    persistLeads();
+
     const tbody = $('leadsBody');
     const tr = document.createElement('tr');
     const typeCls = lead.emailType === 'personal' ? 'type-personal' : 'type-generic';
@@ -1039,8 +1110,11 @@
       <td><div class="quality-bar">${pips}</div></td>
       <td>${esc(lead.source || '')}</td>`;
     tbody.insertBefore(tr, tbody.firstChild);
+    // Keep table at max 100 visible rows
     while (tbody.children.length > 100) tbody.removeChild(tbody.lastChild);
-    $('leadTableCount').textContent = tbody.children.length;
+
+    const total = cachedLeads.length;
+    $('leadTableCount').textContent = total > 100 ? `${total} total · 100 shown` : total;
   }
 
   function esc(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -1049,7 +1123,7 @@
     if (eventSource) eventSource.close();
     eventSource = new EventSource('/api/events');
     eventSource.addEventListener('progress', e => updateStats(JSON.parse(e.data)));
-    eventSource.addEventListener('lead', e => addLeadRow(JSON.parse(e.data)));
+    eventSource.addEventListener('lead', e => addLiveLead(JSON.parse(e.data)));
     eventSource.addEventListener('log', e => addLog(JSON.parse(e.data)));
     eventSource.addEventListener('done', e => { updateStats(JSON.parse(e.data)); setRunningUI(false); addLog({ type: 'phase', message: 'Scraping complete!' }); });
     eventSource.addEventListener('error', e => { try { addLog({ type: 'error', message: JSON.parse(e.data).message }); } catch {} setRunningUI(false); });
@@ -1092,22 +1166,32 @@
     try { await fetch('/api/stop', { method: 'POST' }); addLog({ type: 'warn', message: 'Stop requested...' }); } catch (e) { addLog({ type: 'error', message: e.message }); }
   });
 
-  async function loadExistingLeads() {
-    try {
-      const res = await fetch('/api/leads');
-      const { leads } = await res.json();
-      if (!leads || leads.length === 0) return;
-      // Show most recent 100, oldest first so newest ends up at top
-      const toShow = leads.slice(-100);
-      toShow.forEach(lead => addLeadRow(lead));
-      $('leadTableCount').textContent = leads.length > 100
-        ? `${leads.length} total (showing latest 100)`
-        : leads.length;
-    } catch {}
+  // On startup: load localStorage immediately (instant), then sync from server
+  function initLeads() {
+    // 1. Show stored leads right away — no network needed
+    const stored = readLeadsFromStorage();
+    if (stored.length) {
+      mergeLeads(stored);
+      renderLeadsTable();
+    }
+
+    // 2. Sync from server CSV in the background (catches leads from other devices
+    //    or sessions where the browser wasn't open, and deduplicates)
+    fetch('/api/leads')
+      .then(r => r.json())
+      .then(({ leads }) => {
+        if (!leads || !leads.length) return;
+        const added = mergeLeads(leads);
+        if (added > 0) {
+          persistLeads();
+          renderLeadsTable();
+        }
+      })
+      .catch(() => {}); // server may be offline — localStorage still shown
   }
 
   connectSSE();
-  loadExistingLeads();
+  initLeads();
 </script>
 </body>
 </html>
