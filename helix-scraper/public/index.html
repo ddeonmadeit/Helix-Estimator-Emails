@@ -801,6 +801,170 @@
     @media (display-mode: standalone) {
       body { padding-bottom: max(env(safe-area-inset-bottom), 16px); }
     }
+
+    /* ═══ Email Template & Send sections ═══ */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--primary-border), transparent);
+      margin: 32px 0 28px;
+      opacity: 0.5;
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 700px) { .template-grid { grid-template-columns: 1fr; } }
+
+    .form-group textarea {
+      width: 100%;
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      outline: none;
+      resize: vertical;
+      transition: all var(--transition);
+      line-height: 1.6;
+    }
+
+    .form-group textarea:focus {
+      border-color: var(--primary-border);
+      background: rgba(0,212,212,0.04);
+      box-shadow: 0 0 0 3px rgba(0,212,212,0.06);
+    }
+
+    @media (max-width: 640px) {
+      .form-group textarea { font-size: 16px; }
+    }
+
+    .merge-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .merge-tag {
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--primary-dim);
+      border: 1px solid var(--primary-border);
+      color: var(--primary);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      user-select: none;
+    }
+
+    .merge-tag:hover { background: rgba(0,212,212,0.25); }
+
+    .template-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    /* Send section */
+    .send-meta {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .send-stat {
+      padding: 10px 16px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .send-stat strong { color: var(--text); font-size: 18px; font-weight: 700; }
+
+    .send-progress-wrap {
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .send-progress-wrap.visible { display: block; }
+
+    .send-progress-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .send-progress-top .sending-label { color: var(--primary); font-weight: 600; }
+
+    .send-log {
+      height: 160px;
+      overflow-y: auto;
+      padding: 12px 14px;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'SF Mono','Fira Code','Cascadia Code',monospace;
+      font-size: 11px;
+      line-height: 1.8;
+      margin-top: 14px;
+    }
+
+    .send-log::-webkit-scrollbar { width: 4px; }
+    .send-log::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    .send-log-entry { display: flex; gap: 10px; }
+    .send-log-entry.ok   .sl-msg { color: var(--green); }
+    .send-log-entry.fail .sl-msg { color: var(--red); }
+    .send-log-entry.info .sl-msg { color: var(--text-muted); }
+    .sl-time { color: rgba(255,255,255,0.15); min-width: 56px; }
+
+    .delay-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .delay-row .form-group { flex: 1; min-width: 140px; }
+
+    .btn-send {
+      background: linear-gradient(135deg, var(--primary), #00a8a8);
+      color: var(--bg);
+      box-shadow: 0 4px 24px rgba(0,212,212,0.3);
+    }
+
+    .btn-send:hover { box-shadow: 0 6px 32px rgba(0,212,212,0.45); }
+    .btn-send:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .env-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--yellow-dim);
+      border: 1px solid rgba(210,153,34,0.3);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--yellow);
+      margin-bottom: 16px;
+    }
   </style>
 </head>
 <body>
@@ -929,6 +1093,107 @@
           <tbody id="leadsBody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <div class="section-divider"></div>
+
+  <!-- ── Email Template ── -->
+  <div class="controls-section glass-strong" style="margin-bottom:24px;animation:fade-up 0.5s ease 0.5s both">
+    <div class="controls-header">Email Template</div>
+
+    <div class="template-hint">Use merge tags to personalise each email. Click a tag to copy it.</div>
+    <div class="merge-tags">
+      <span class="merge-tag" data-tag="{{firstName}}">{{firstName}}</span>
+      <span class="merge-tag" data-tag="{{ownerName}}">{{ownerName}}</span>
+      <span class="merge-tag" data-tag="{{company}}">{{company}}</span>
+      <span class="merge-tag" data-tag="{{industry}}">{{industry}}</span>
+      <span class="merge-tag" data-tag="{{location}}">{{location}}</span>
+      <span class="merge-tag" data-tag="{{senderName}}">{{senderName}}</span>
+    </div>
+
+    <div class="template-grid">
+      <div class="form-group">
+        <label>Your Name (sender)</label>
+        <input type="text" id="tplFromName" placeholder="Jane Smith">
+      </div>
+      <div class="form-group">
+        <label>From Email <span style="color:var(--primary);font-size:10px">(verified in Resend)</span></label>
+        <input type="email" id="tplFromEmail" placeholder="jane@yourdomain.com">
+      </div>
+      <div class="form-group">
+        <label>Reply-To (optional)</label>
+        <input type="email" id="tplReplyTo" placeholder="replies@yourdomain.com">
+      </div>
+      <div class="form-group">
+        <label>Subject Line</label>
+        <input type="text" id="tplSubject" placeholder="Quick question about {{company}}">
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Email Body</label>
+      <textarea id="tplBody" rows="10" placeholder="Write your email here..."></textarea>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnSaveTemplate">Save Template</button>
+      <button class="btn btn-resume" id="btnPreviewTemplate">Preview</button>
+    </div>
+
+    <!-- Preview modal -->
+    <div id="tplPreviewBox" style="display:none;margin-top:16px;padding:20px;background:rgba(0,212,212,0.04);border:1px solid var(--primary-border);border-radius:var(--radius-sm)">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:6px">Subject</div>
+      <div id="previewSubject" style="margin-bottom:16px;font-weight:600;color:var(--text)"></div>
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin-bottom:6px">Body</div>
+      <div id="previewBody" style="white-space:pre-wrap;color:var(--text-muted);font-size:13px;line-height:1.7"></div>
+    </div>
+  </div>
+
+  <!-- ── Bulk Send ── -->
+  <div class="controls-section glass-strong" style="animation:fade-up 0.5s ease 0.55s both">
+    <div class="controls-header">Bulk Send</div>
+
+    <div id="resendWarning" class="env-warning" style="display:none">
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      <span>Set <strong>RESEND_API_KEY</strong> in your Railway environment variables and a verified From Email in the template above before sending.</span>
+    </div>
+
+    <div class="send-meta">
+      <div class="send-stat"><strong id="sendLeadsCount">0</strong> leads in store</div>
+      <div class="send-stat"><strong id="sendAlreadySent">0</strong> already sent</div>
+      <div class="send-stat"><strong id="sendQueued">0</strong> will be sent</div>
+    </div>
+
+    <div class="delay-row">
+      <div class="form-group">
+        <label>Min delay between emails (sec)</label>
+        <input type="number" id="sendDelayMin" value="4" min="2" max="60">
+      </div>
+      <div class="form-group">
+        <label>Max delay between emails (sec)</label>
+        <input type="number" id="sendDelayMax" value="9" min="2" max="120">
+      </div>
+    </div>
+
+    <div class="send-progress-wrap" id="sendProgressWrap">
+      <div class="send-progress-top">
+        <span class="sending-label" id="sendStatusLabel">Sending…</span>
+        <span id="sendProgressCount">0 / 0</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="sendProgressFill" style="width:0%"></div>
+      </div>
+      <div class="send-log" id="sendLog"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-send" id="btnSend">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:middle;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        Send Emails
+      </button>
+      <button class="btn btn-stop" id="btnSendStop" disabled>Stop Sending</button>
+      <button class="btn" id="btnClearSent" style="background:var(--bg-glass);border:1px solid var(--border);color:var(--text-muted)">Clear Sent History</button>
     </div>
   </div>
 
@@ -1190,8 +1455,200 @@
       .catch(() => {}); // server may be offline — localStorage still shown
   }
 
+  // ══════════════════════════════════════════
+  // Email Template
+  // ══════════════════════════════════════════
+
+  const TEMPLATE_KEY = 'helix_template_v1';
+
+  function loadTemplateFromStorage() {
+    try { return JSON.parse(localStorage.getItem(TEMPLATE_KEY) || 'null'); } catch { return null; }
+  }
+
+  function saveTemplateToStorage(t) {
+    try { localStorage.setItem(TEMPLATE_KEY, JSON.stringify(t)); } catch {}
+  }
+
+  function getTemplateFromForm() {
+    return {
+      fromName:  $('tplFromName').value.trim(),
+      fromEmail: $('tplFromEmail').value.trim(),
+      replyTo:   $('tplReplyTo').value.trim(),
+      subject:   $('tplSubject').value,
+      body:      $('tplBody').value
+    };
+  }
+
+  function applyTemplateToForm(t) {
+    if (!t) return;
+    $('tplFromName').value  = t.fromName  || '';
+    $('tplFromEmail').value = t.fromEmail || '';
+    $('tplReplyTo').value   = t.replyTo   || '';
+    $('tplSubject').value   = t.subject   || '';
+    $('tplBody').value      = t.body      || '';
+  }
+
+  // Merge-tag click-to-insert
+  document.querySelectorAll('.merge-tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      const val = tag.dataset.tag;
+      const ta = $('tplBody');
+      const start = ta.selectionStart, end = ta.selectionEnd;
+      ta.value = ta.value.slice(0, start) + val + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + val.length;
+      ta.focus();
+    });
+  });
+
+  $('btnSaveTemplate').addEventListener('click', async () => {
+    const t = getTemplateFromForm();
+    saveTemplateToStorage(t);
+    try { await fetch('/api/template', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) }); } catch {}
+    $('btnSaveTemplate').textContent = 'Saved ✓';
+    setTimeout(() => { $('btnSaveTemplate').textContent = 'Save Template'; }, 1800);
+    refreshSendMeta();
+  });
+
+  function previewMerge(str) {
+    return str
+      .replace(/\{\{firstName\}\}/g, 'John')
+      .replace(/\{\{ownerName\}\}/g, 'John Smith')
+      .replace(/\{\{company\}\}/g, 'Acme Construction')
+      .replace(/\{\{industry\}\}/g, 'Builder')
+      .replace(/\{\{location\}\}/g, 'Sydney')
+      .replace(/\{\{senderName\}\}/g, $('tplFromName').value || 'You');
+  }
+
+  $('btnPreviewTemplate').addEventListener('click', () => {
+    const box = $('tplPreviewBox');
+    if (box.style.display !== 'none') { box.style.display = 'none'; return; }
+    $('previewSubject').textContent = previewMerge($('tplSubject').value);
+    $('previewBody').textContent    = previewMerge($('tplBody').value);
+    box.style.display = 'block';
+  });
+
+  // Load template: localStorage first, then server
+  (async () => {
+    const stored = loadTemplateFromStorage();
+    if (stored) applyTemplateToForm(stored);
+    try {
+      const r = await fetch('/api/template');
+      const t = await r.json();
+      if (t && t.subject) { applyTemplateToForm(t); saveTemplateToStorage(t); }
+    } catch {}
+  })();
+
+  // ══════════════════════════════════════════
+  // Bulk Send
+  // ══════════════════════════════════════════
+
+  let sendEventSource = null;
+
+  async function refreshSendMeta() {
+    const total = cachedLeads.length;
+    $('sendLeadsCount').textContent = total;
+    try {
+      const r = await fetch('/api/sent');
+      const { emails } = await r.json();
+      const sentSet = new Set(emails.map(e => e.toLowerCase()));
+      const unsent = cachedLeads.filter(l => l.email && !sentSet.has(l.email.toLowerCase())).length;
+      $('sendAlreadySent').textContent = total - unsent;
+      $('sendQueued').textContent = unsent;
+    } catch {
+      $('sendAlreadySent').textContent = '?';
+      $('sendQueued').textContent = total;
+    }
+  }
+
+  function addSendLog(msg, type = 'info') {
+    const el = document.createElement('div');
+    el.className = 'send-log-entry ' + type;
+    const t = new Date().toLocaleTimeString('en-AU', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    el.innerHTML = `<span class="sl-time">${t}</span><span class="sl-msg">${esc(msg)}</span>`;
+    const log = $('sendLog');
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function setSendRunningUI(running) {
+    $('btnSend').disabled = running;
+    $('btnSendStop').disabled = !running;
+    if (running) {
+      $('sendProgressWrap').classList.add('visible');
+      $('sendStatusLabel').textContent = 'Sending…';
+    }
+  }
+
+  $('btnSend').addEventListener('click', async () => {
+    const tpl = getTemplateFromForm();
+    if (!tpl.fromEmail) { alert('Please set a verified From Email in the template above.'); return; }
+
+    const r = await fetch('/api/sent');
+    const { emails: sentEmails } = await r.json();
+    const sentSet = new Set(sentEmails.map(e => e.toLowerCase()));
+    const leads = cachedLeads.filter(l => l.email && !sentSet.has(l.email.toLowerCase()));
+
+    if (leads.length === 0) { alert('No unsent leads — all contacts have already been emailed.'); return; }
+    if (!confirm(`Send to ${leads.length} unsent lead${leads.length !== 1 ? 's' : ''}?`)) return;
+
+    const delayMin = Math.max(2, parseInt($('sendDelayMin').value, 10) || 4) * 1000;
+    const delayMax = Math.max(delayMin, parseInt($('sendDelayMax').value, 10) || 9) * 1000;
+
+    try {
+      const startRes = await fetch('/api/send/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leads, delayMin, delayMax })
+      });
+      const startData = await startRes.json();
+      if (!startRes.ok) { alert(startData.error || 'Failed to start'); return; }
+
+      setSendRunningUI(true);
+      $('sendProgressCount').textContent = `0 / ${startData.queued}`;
+      $('sendProgressFill').style.width = '0%';
+      addSendLog(`Starting — ${startData.queued} emails queued, ${startData.alreadySent} already sent`, 'info');
+
+      // Connect SSE
+      if (sendEventSource) sendEventSource.close();
+      sendEventSource = new EventSource('/api/send/events');
+
+      sendEventSource.addEventListener('send_progress', e => {
+        const d = JSON.parse(e.data);
+        const pct = d.total ? Math.round((d.sent + d.failed) / d.total * 100) : 0;
+        $('sendProgressFill').style.width = pct + '%';
+        $('sendProgressCount').textContent = `${d.sent} / ${d.total}`;
+        if (d.status === 'sent')   addSendLog(`✓ ${d.current}`, 'ok');
+        if (d.status === 'failed') addSendLog(`✗ ${d.current} — ${d.error || 'failed'}`, 'fail');
+      });
+
+      sendEventSource.addEventListener('send_done', e => {
+        const d = JSON.parse(e.data);
+        sendEventSource.close();
+        setSendRunningUI(false);
+        $('sendProgressFill').style.width = '100%';
+        $('sendStatusLabel').textContent = d.aborted ? 'Stopped' : 'Complete';
+        addSendLog(`Done — ${d.sent} sent, ${d.failed} failed${d.aborted ? ' (stopped early)' : ''}`, 'info');
+        refreshSendMeta();
+      });
+
+    } catch (err) { alert('Network error: ' + err.message); }
+  });
+
+  $('btnSendStop').addEventListener('click', async () => {
+    try { await fetch('/api/send/stop', { method: 'POST' }); } catch {}
+  });
+
+  $('btnClearSent').addEventListener('click', async () => {
+    if (!confirm('Clear all sent-email history? This means everyone can be emailed again.')) return;
+    await fetch('/api/sent', { method: 'DELETE' });
+    refreshSendMeta();
+    addSendLog('Sent history cleared', 'info');
+    $('sendProgressWrap').classList.add('visible');
+  });
+
   connectSSE();
   initLeads();
+  refreshSendMeta();
 </script>
 </body>
 </html>
