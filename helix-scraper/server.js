@@ -3,6 +3,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const csvParser = require('csv-parser');
 const { ScraperPipeline, industries, locations } = require('./src/pipeline');
 const config = require('./src/config');
 
@@ -99,12 +100,31 @@ app.get('/api/download', (req, res) => {
   res.download(csvPath, 'Helix Leads.csv');
 });
 
-// Get recent leads as JSON (for table)
+// Get all leads as JSON (reads from CSV for persistence across reloads)
 app.get('/api/leads', (req, res) => {
-  if (!pipeline) {
-    return res.json({ leads: [] });
+  const csvPath = path.join(config.OUTPUT_DIR, 'Helix Leads.csv');
+  if (!fs.existsSync(csvPath)) {
+    return res.json({ leads: pipeline ? (pipeline.recentLeads || []) : [] });
   }
-  res.json({ leads: pipeline.recentLeads || [] });
+
+  const leads = [];
+  fs.createReadStream(csvPath)
+    .pipe(csvParser())
+    .on('data', (row) => {
+      leads.push({
+        email: row['Email'] || '',
+        ownerName: row['Owner Name'] || '',
+        companyName: row['Company Name'] || '',
+        website: row['Website'] || '',
+        industry: row['Industry'] || '',
+        location: row['Location'] || '',
+        emailType: row['Email Type'] || '',
+        qualityScore: parseInt(row['Quality Score'], 10) || 0,
+        source: row['Source'] || ''
+      });
+    })
+    .on('end', () => res.json({ leads }))
+    .on('error', () => res.json({ leads: pipeline ? (pipeline.recentLeads || []) : [] }));
 });
 
 // SSE endpoint for live updates

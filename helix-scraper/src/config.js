@@ -51,14 +51,50 @@ module.exports = {
 
   // Junk domains to skip from search results
   JUNK_DOMAINS: [
+    // Social media
     'facebook.com', 'instagram.com', 'youtube.com', 'linkedin.com',
-    'gumtree.com.au', 'seek.com.au', 'abn.business.gov.au',
     'twitter.com', 'x.com', 'pinterest.com', 'tiktok.com',
-    'yelp.com', 'tripadvisor.com', 'wikipedia.org', 'reddit.com',
-    'amazon.com', 'ebay.com.au', 'hipages.com.au', 'servicecentral.com.au',
-    'productreview.com.au', 'oneflare.com.au', 'airtasker.com',
+    // Job boards
+    'seek.com.au', 'indeed.com', 'careerone.com.au', 'jora.com', 'glassdoor.com',
+    // Classifieds / marketplaces
+    'gumtree.com.au', 'amazon.com', 'ebay.com.au',
+    // Trade platforms & directories (not company sites)
+    'hipages.com.au', 'servicecentral.com.au', 'oneflare.com.au', 'airtasker.com',
+    'tradesmen.com.au', 'builderscrack.com.au', 'myhammer.com.au',
+    // Review / info sites
+    'yelp.com', 'tripadvisor.com', 'productreview.com.au', 'trustpilot.com',
+    // Directories
     'localsearch.com.au', 'whereis.com', 'whitepages.com.au',
-    'yellowpages.com.au', 'truelocal.com.au', 'hotfrog.com.au'
+    'yellowpages.com.au', 'truelocal.com.au', 'hotfrog.com.au',
+    'abn.business.gov.au', 'abr.business.gov.au',
+    // Reference / social
+    'wikipedia.org', 'reddit.com', 'quora.com',
+    // Blog / CMS platforms (hosted blogs, not company sites)
+    'wordpress.com', 'blogspot.com', 'blogger.com', 'medium.com',
+    'ghost.io', 'substack.com', 'weebly.com', 'jimdo.com',
+    'tumblr.com', 'livejournal.com',
+    // Website builders (subdomain-hosted sites are ok, but these domains themselves are junk)
+    'wixsite.com', 'squarespace.com', 'webflow.io',
+    // Australian news & media
+    'abc.net.au', 'news.com.au', 'smh.com.au', 'theage.com.au',
+    'heraldsun.com.au', 'couriermail.com.au', 'adelaidenow.com.au',
+    'perthnow.com.au', 'theaustralian.com.au', 'dailytelegraph.com.au',
+    'canberratimes.com.au', 'ntnews.com.au', 'themercury.com.au',
+    'brisbanetimes.com.au', 'watoday.com.au', '9news.com.au', '7news.com.au',
+    'ten.com.au', 'sbs.com.au', 'channelnews.com.au',
+    // Trade publications / industry blogs (not actual businesses)
+    'constructionglobal.com', 'architectureanddesign.com.au',
+    'theurbandeveloper.com', 'propertychat.com.au', 'realestate.com.au',
+    'domain.com.au', 'realestateview.com.au'
+  ],
+
+  // Blog/media platform email domains — emails from these are not real business emails
+  BLOG_EMAIL_DOMAINS: [
+    'wordpress.com', 'blogspot.com', 'blogger.com', 'medium.com',
+    'ghost.io', 'substack.com', 'wixsite.com', 'weebly.com',
+    'abc.net.au', 'news.com.au', 'smh.com.au', 'theage.com.au',
+    'heraldsun.com.au', 'couriermail.com.au', 'theaustralian.com.au',
+    'realestate.com.au', 'domain.com.au', 'seek.com.au'
   ],
 
   // High-end indicators

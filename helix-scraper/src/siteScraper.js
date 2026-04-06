@@ -35,17 +35,37 @@ function extractEmails(html) {
   return [...emails];
 }
 
-function filterEmails(emails) {
+function extractRootDomain(url) {
+  try {
+    const hostname = url.replace(/^https?:\/\//i, '').split('/')[0].toLowerCase();
+    // Strip www.
+    return hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function filterEmails(emails, siteUrl = '') {
+  const siteRoot = siteUrl ? extractRootDomain(siteUrl) : '';
+
   return emails.filter(email => {
     // Remove free domain emails
     if (isFreeDomain(email)) return false;
 
+    const [local, emailDomain] = email.split('@');
+    const localLower = local.toLowerCase();
+    const emailDomainLower = (emailDomain || '').toLowerCase();
+
     // Remove automated emails
-    const local = email.split('@')[0].toLowerCase();
     for (const prefix of config.AUTOMATED_PREFIXES) {
-      if (local === prefix || local.startsWith(prefix + '.') || local.startsWith(prefix + '-')) {
+      if (localLower === prefix || localLower.startsWith(prefix + '.') || localLower.startsWith(prefix + '-')) {
         return false;
       }
+    }
+
+    // Remove emails from blog/media platform domains
+    for (const blogDomain of config.BLOG_EMAIL_DOMAINS) {
+      if (emailDomainLower === blogDomain || emailDomainLower.endsWith('.' + blogDomain)) return false;
     }
 
     // Basic validation
@@ -54,6 +74,14 @@ function filterEmails(emails) {
 
     // Skip image filenames that look like emails
     if (/\.(png|jpg|jpeg|gif|svg|webp|css|js)$/i.test(email)) return false;
+
+    // If we know the site URL, prefer emails whose domain matches the company's domain.
+    // Reject emails whose domain is entirely unrelated (different root domain).
+    if (siteRoot) {
+      const siteApex = siteRoot.split('.').slice(-2).join('.');
+      const emailApex = emailDomainLower.split('.').slice(-2).join('.');
+      if (emailApex !== siteApex) return false;
+    }
 
     return true;
   });
@@ -187,8 +215,8 @@ async function scrapeSite(company, verbose = false) {
 
   await Promise.all(subpagePromises);
 
-  // Filter and deduplicate emails
-  const filteredEmails = filterEmails([...new Set(allEmails)]);
+  // Filter and deduplicate emails — pass baseUrl to enforce domain matching
+  const filteredEmails = filterEmails([...new Set(allEmails)], baseUrl);
 
   if (filteredEmails.length === 0) return null;
 

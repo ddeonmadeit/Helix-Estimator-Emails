@@ -927,7 +927,22 @@
     try { await fetch('/api/stop', { method: 'POST' }); addLog({ type: 'warn', message: 'Stop requested...' }); } catch (e) { addLog({ type: 'error', message: e.message }); }
   });
 
+  async function loadExistingLeads() {
+    try {
+      const res = await fetch('/api/leads');
+      const { leads } = await res.json();
+      if (!leads || leads.length === 0) return;
+      // Show most recent 100, oldest first so newest ends up at top
+      const toShow = leads.slice(-100);
+      toShow.forEach(lead => addLeadRow(lead));
+      $('leadTableCount').textContent = leads.length > 100
+        ? `${leads.length} total (showing latest 100)`
+        : leads.length;
+    } catch {}
+  }
+
   connectSSE();
+  loadExistingLeads();
 </script>
 </body>
 </html>
