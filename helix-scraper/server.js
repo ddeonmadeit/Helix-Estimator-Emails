@@ -35,9 +35,9 @@ function saveSentEmails(set) {
 
 // ── Template persistence ──
 const DEFAULT_TEMPLATE = {
-  fromName: 'Your Name',
-  fromEmail: '',           // must be a verified Resend sender
-  replyTo: '',
+  fromName: 'Helix Outreach',
+  fromEmail: 'info@helixsolution.au',
+  replyTo: 'info@helixsolution.au',
   subject: 'Quick question about {{company}}',
   body: `Hi {{firstName}},
 
