@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "start": "node helix-scraper/server.js",
-    "build": "npm install --prefix helix-scraper"
+    "build": "npm install --prefix helix-scraper",
+    "postinstall": "npm install --prefix helix-scraper"
   },
   "engines": {
     "node": ">=18.0.0"
