@@ -1318,11 +1318,10 @@
       cachedLeads.push(lead);
       added++;
     }
-    // Keep only the most recent MAX_STORED
+    // Keep only the most recent MAX_STORED and rebuild cachedEmails cleanly
     if (cachedLeads.length > MAX_STORED) {
-      const trimmed = cachedLeads.slice(-MAX_STORED);
-      trimmed.forEach(l => cachedEmails.add((l.email || '').toLowerCase()));
-      cachedLeads = trimmed;
+      cachedLeads = cachedLeads.slice(-MAX_STORED);
+      cachedEmails = new Set(cachedLeads.map(l => (l.email || '').toLowerCase()).filter(Boolean));
     }
     return added;
   }

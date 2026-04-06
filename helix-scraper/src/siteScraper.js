@@ -75,12 +75,17 @@ function filterEmails(emails, siteUrl = '') {
     // Skip image filenames that look like emails
     if (/\.(png|jpg|jpeg|gif|svg|webp|css|js)$/i.test(email)) return false;
 
-    // If we know the site URL, prefer emails whose domain matches the company's domain.
-    // Reject emails whose domain is entirely unrelated (different root domain).
+    // If we know the site URL, reject emails whose root domain doesn't match.
+    // Handles second-level TLDs like .com.au, .net.au, .org.au correctly.
     if (siteRoot) {
-      const siteApex = siteRoot.split('.').slice(-2).join('.');
-      const emailApex = emailDomainLower.split('.').slice(-2).join('.');
-      if (emailApex !== siteApex) return false;
+      const AU_SECOND_LEVEL = ['com.au', 'net.au', 'org.au', 'edu.au', 'gov.au', 'asn.au', 'id.au'];
+      const rootOf = (domain) => {
+        const d = domain.toLowerCase();
+        const matchedTld = AU_SECOND_LEVEL.find(t => d.endsWith('.' + t));
+        const parts = d.split('.');
+        return matchedTld ? parts.slice(-3).join('.') : parts.slice(-2).join('.');
+      };
+      if (rootOf(emailDomainLower) !== rootOf(siteRoot)) return false;
     }
 
     return true;

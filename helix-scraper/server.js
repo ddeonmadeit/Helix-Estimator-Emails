@@ -242,7 +242,7 @@ app.post('/api/send/start', async (req, res) => {
           a{color:#0066cc}
           .unsub{margin-top:32px;font-size:12px;color:#888}
         </style></head><body>
-          ${bodyText.split('\n').map(l => l.trim() === '' ? '</p><p>' : l).join('\n').replace(/^/, '<p>').replace(/$/, '</p>')}
+          ${bodyText.split(/\n{2,}/).map(para => `<p>${para.trim().replace(/\n/g, '<br>')}</p>`).join('\n')}
           <div class="unsub"><a href="mailto:${tpl.fromEmail}?subject=Unsubscribe">Unsubscribe</a></div>
         </body></html>`;
 
