@@ -35,7 +35,7 @@ function saveSentEmails(set) {
 
 // ── Template persistence ──
 const DEFAULT_TEMPLATE = {
-  fromName: 'Helix Outreach',
+  fromName: 'Helix Solutions',
   fromEmail: 'info@helixsolution.au',
   replyTo: 'info@helixsolution.au',
   subject: 'Quick question about {{company}}',
