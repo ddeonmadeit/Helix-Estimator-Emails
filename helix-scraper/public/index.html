@@ -2,9 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Helix Outreach</title>
+
+  <!-- PWA / iOS standalone -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Helix">
+  <meta name="theme-color" content="#0a0a0f">
+
+  <!-- Icons -->
   <link rel="icon" type="image/png" href="https://image2url.com/r2/default/images/1775285198680-f6aff5b3-8565-4dfe-9136-83b95958fffa.png">
+  <link rel="apple-touch-icon" href="https://image2url.com/r2/default/images/1775285198680-f6aff5b3-8565-4dfe-9136-83b95958fffa.png">
+  <link rel="manifest" href="/manifest.json">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -40,12 +52,24 @@
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    html {
+      height: 100%;
+      /* prevent iOS rubber-band bounce on the page itself */
+      overscroll-behavior: none;
+    }
+
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+      min-height: 100dvh;
       overflow-x: hidden;
+      overscroll-behavior: none;
+      /* bottom safe area for iPhone home indicator */
+      padding-bottom: env(safe-area-inset-bottom);
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
     }
 
     /* ═══ Background Effects ═══ */
@@ -124,11 +148,12 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      padding: 16px 32px;
+      /* top padding absorbs the notch / Dynamic Island */
+      padding: calc(16px + env(safe-area-inset-top)) calc(32px + env(safe-area-inset-right)) 16px calc(32px + env(safe-area-inset-left));
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: rgba(10, 10, 15, 0.8);
+      background: rgba(10, 10, 15, 0.92);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       border-bottom: 1px solid var(--border);
@@ -636,6 +661,146 @@
     }
 
     .empty-state svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.3; }
+
+    /* ═══ Mobile ═══ */
+    @media (max-width: 640px) {
+      /* Header */
+      .header {
+        padding-left: calc(16px + env(safe-area-inset-left));
+        padding-right: calc(16px + env(safe-area-inset-right));
+      }
+
+      .header h1 { font-size: 17px; }
+
+      /* Download button — icon only on very small screens */
+      .btn-download .btn-label { display: none; }
+      .btn-download {
+        padding: 10px 12px;
+        min-width: 44px;
+        min-height: 44px;
+        justify-content: center;
+      }
+      .btn-download svg { width: 20px; height: 20px; margin: 0; }
+
+      /* Container */
+      .container {
+        padding: 16px 12px;
+      }
+
+      /* Stats: 2 col, tighter */
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .stat-card {
+        padding: 14px 12px;
+      }
+
+      .stat-card .value {
+        font-size: 26px;
+      }
+
+      .stat-card .value[style*="font-size: 24px"] {
+        font-size: 20px !important;
+      }
+
+      /* Progress */
+      .progress-section {
+        padding: 16px;
+        margin-bottom: 14px;
+      }
+
+      .progress-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      /* Controls */
+      .controls-section {
+        padding: 18px 14px;
+        margin-bottom: 14px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      /* Prevent iOS zoom on input focus — must be 16px+ */
+      .form-group input,
+      .form-group select {
+        font-size: 16px;
+        padding: 13px 14px;
+        min-height: 48px;
+      }
+
+      /* Source chips: wrap nicely, bigger tap area */
+      .source-chip {
+        padding: 10px 14px;
+        font-size: 13px;
+        min-height: 40px;
+      }
+
+      /* Buttons: full width stack */
+      .btn-row {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 15px 20px;
+        font-size: 15px;
+        text-align: center;
+        justify-content: center;
+        min-height: 50px;
+      }
+
+      /* Split panels: stack */
+      .split-grid {
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+
+      /* Log & table heights on mobile */
+      .log-scroll {
+        height: 260px;
+        font-size: 11px;
+      }
+
+      .table-scroll {
+        height: 280px;
+      }
+
+      /* Table: hide Quality and Source on mobile for readability */
+      thead th:nth-child(4),
+      thead th:nth-child(5),
+      tbody td:nth-child(4),
+      tbody td:nth-child(5) {
+        display: none;
+      }
+
+      tbody td {
+        font-size: 11px;
+        padding: 10px 10px;
+      }
+    }
+
+    /* Phones in landscape */
+    @media (max-width: 900px) and (orientation: landscape) {
+      .log-scroll,
+      .table-scroll { height: 200px; }
+    }
+
+    /* Standalone (added to home screen) — extra safety for all iOS */
+    @media (display-mode: standalone) {
+      body { padding-bottom: max(env(safe-area-inset-bottom), 16px); }
+    }
   </style>
 </head>
 <body>
@@ -657,7 +822,7 @@
   </div>
   <a href="/api/download" class="btn btn-download" id="downloadBtn">
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-    Download CSV
+    <span class="btn-label">Download CSV</span>
   </a>
 </div>
 

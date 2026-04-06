@@ -1,0 +1,24 @@
+{
+  "name": "Helix Outreach",
+  "short_name": "Helix",
+  "description": "Helix lead scraper and outreach tool",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://image2url.com/r2/default/images/1775285198680-f6aff5b3-8565-4dfe-9136-83b95958fffa.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://image2url.com/r2/default/images/1775285198680-f6aff5b3-8565-4dfe-9136-83b95958fffa.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
