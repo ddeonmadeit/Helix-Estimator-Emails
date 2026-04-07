@@ -2,18 +2,18 @@ require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') }
 
 module.exports = {
   // Directory scraping
-  DIRECTORY_DELAY_MIN: 1500,
-  DIRECTORY_DELAY_MAX: 4000,
-  DIRECTORY_CONCURRENCY: parseInt(process.env.DIRECTORY_CONCURRENCY, 10) || 3,
+  DIRECTORY_DELAY_MIN: 1200,
+  DIRECTORY_DELAY_MAX: 3000,
+  DIRECTORY_CONCURRENCY: parseInt(process.env.DIRECTORY_CONCURRENCY, 10) || 5,
 
   // Company website scraping
-  SITE_DELAY_MIN: 800,
-  SITE_DELAY_MAX: 2500,
-  SITE_CONCURRENCY: parseInt(process.env.SITE_CONCURRENCY, 10) || 10,
+  SITE_DELAY_MIN: 400,
+  SITE_DELAY_MAX: 1200,
+  SITE_CONCURRENCY: parseInt(process.env.SITE_CONCURRENCY, 10) || 15,
 
   // Search engine scraping
-  SEARCH_DELAY_MIN: 5000,
-  SEARCH_DELAY_MAX: 12000,
+  SEARCH_DELAY_MIN: 4000,
+  SEARCH_DELAY_MAX: 9000,
   SEARCH_CONCURRENCY: 1,
 
   // General

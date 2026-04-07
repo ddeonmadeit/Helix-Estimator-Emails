@@ -2,14 +2,40 @@ const cheerio = require('cheerio');
 const config = require('../config');
 const { fetchWithRetry, randomDelay } = require('../proxyRotator');
 
-function buildQueries(industry, location) {
-  return [
-    `${industry} ${location} Australia email contact`,
-    `${industry} company ${location} "about us" director`,
-    `${industry} ${location} .com.au contact`,
-    `site:yellowpages.com.au ${industry} ${location}`
+function buildQueries(industry, location, round = 1) {
+  const sets = [
+    // Round 1 — broad contact
+    [
+      `${industry} ${location} Australia email contact`,
+      `${industry} company ${location} "about us" director`,
+      `${industry} ${location} site:.com.au contact`,
+      `"${industry}" "${location}" email enquiry`
+    ],
+    // Round 2 — owner/decision-maker focused
+    [
+      `${industry} ${location} owner director "contact us" site:.com.au`,
+      `"${industry}" "${location}" ABN Australia email`,
+      `${industry} business ${location} proprietor email`,
+      `${industry} ${location} Australia "free quote"`
+    ],
+    // Round 3 — deeper niche queries
+    [
+      `${industry} services ${location} Australia email`,
+      `small business ${industry} ${location} contact`,
+      `${industry} specialist ${location} .com.au`,
+      `"${location}" "${industry}" contractor Australia email`
+    ],
+    // Round 4 — trade-specific
+    [
+      `${industry} ${location} "call us" OR "email us" site:.com.au`,
+      `licensed ${industry} ${location} Australia`,
+      `${industry} company ${location} testimonials`,
+      `top ${industry} ${location} Australia reviews`
+    ]
   ];
+  return sets[(round - 1) % sets.length];
 }
+
 
 function isJunkDomain(domain) {
   const lower = domain.toLowerCase();
@@ -28,8 +54,8 @@ function extractDomainFromUrl(url) {
   }
 }
 
-async function searchDuckDuckGo(industry, location, verbose = false) {
-  const queries = buildQueries(industry, location);
+async function searchDuckDuckGo(industry, location, verbose = false, round = 1) {
+  const queries = buildQueries(industry, location, round);
   const domains = [];
 
   for (const query of queries) {

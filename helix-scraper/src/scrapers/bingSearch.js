@@ -2,14 +2,40 @@ const cheerio = require('cheerio');
 const config = require('../config');
 const { fetchWithRetry, randomDelay } = require('../proxyRotator');
 
-function buildQueries(industry, location) {
-  return [
-    `${industry} ${location} Australia contact email site:.com.au`,
-    `${industry} company ${location} .com.au owner`,
-    `${industry} contractor ${location} Australia`,
-    `${industry} ${location} "contact us" .com.au`
+function buildQueries(industry, location, round = 1) {
+  const sets = [
+    // Round 1
+    [
+      `${industry} ${location} Australia contact email site:.com.au`,
+      `${industry} company ${location} .com.au owner`,
+      `${industry} contractor ${location} Australia`,
+      `${industry} ${location} "contact us" .com.au`
+    ],
+    // Round 2
+    [
+      `${industry} ${location} director email .com.au`,
+      `"${industry}" "${location}" "get a quote" site:.com.au`,
+      `${industry} business ${location} ABN email`,
+      `${industry} ${location} reviews email contact`
+    ],
+    // Round 3
+    [
+      `${industry} ${location} services "call us" email`,
+      `${industry} specialist ${location} Australia site:.com.au`,
+      `"${industry} ${location}" owner contact Australia`,
+      `${industry} ${location} testimonials site:.com.au`
+    ],
+    // Round 4
+    [
+      `licensed ${industry} ${location} email site:.com.au`,
+      `${industry} ${location} "years experience" contact`,
+      `affordable ${industry} ${location} Australia email`,
+      `${industry} ${location} "about us" email director`
+    ]
   ];
+  return sets[(round - 1) % sets.length];
 }
+
 
 function isJunkDomain(domain) {
   const lower = domain.toLowerCase();
@@ -28,8 +54,8 @@ function extractDomainFromUrl(url) {
   }
 }
 
-async function searchBing(industry, location, verbose = false) {
-  const queries = buildQueries(industry, location);
+async function searchBing(industry, location, verbose = false, round = 1) {
+  const queries = buildQueries(industry, location, round);
   const domains = [];
 
   for (const query of queries) {

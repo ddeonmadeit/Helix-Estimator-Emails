@@ -17,6 +17,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ── Paths ──
 const SENT_PATH     = path.join(config.OUTPUT_DIR, 'sent.json');
 const TEMPLATE_PATH = path.join(config.OUTPUT_DIR, 'template.json');
+const SETTINGS_PATH = path.join(config.OUTPUT_DIR, 'last-settings.json');
 
 function ensureOutputDir() {
   if (!fs.existsSync(config.OUTPUT_DIR)) fs.mkdirSync(config.OUTPUT_DIR, { recursive: true });
@@ -110,10 +111,19 @@ app.get('/api/status', (req, res) => {
   res.json(pipeline.getStatus());
 });
 
+app.get('/api/last-settings', (req, res) => {
+  try { res.json(JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf8'))); }
+  catch { res.json(null); }
+});
+
 app.post('/api/start', (req, res) => {
   if (pipeline && pipeline.running) return res.status(409).json({ error: 'Scraper is already running' });
 
   const { target = 1000, resume = false, sources = ['yellowpages','truelocal','hotfrog','duckduckgo','bing'], industry = null, location = null } = req.body;
+
+  // Persist settings so Resume can restore them
+  const settings = { target, sources, industry, location };
+  try { ensureOutputDir(); fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings)); } catch {}
 
   pipeline = new ScraperPipeline({ target: parseInt(target, 10) || 1000, resume, sources, industry, location, verbose: true });
   attachPipelineEvents(pipeline);
@@ -232,29 +242,68 @@ app.post('/api/send/start', async (req, res) => {
       if (sendJob.aborted) break;
 
       try {
-        const subject = applyMergeTags(tpl.subject, lead, tpl);
+        const subject  = applyMergeTags(tpl.subject, lead, tpl);
         const bodyText = applyMergeTags(tpl.body, lead, tpl);
+        const firstName = (lead.ownerName || '').split(' ')[0] || 'there';
 
-        // Convert plain text to minimal HTML (preserves line breaks, links look clean)
-        const bodyHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-          body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:15px;line-height:1.7;color:#1a1a1a;max-width:600px;margin:0 auto;padding:24px 16px}
-          p{margin:0 0 16px}
-          a{color:#0066cc}
-          .unsub{margin-top:32px;font-size:12px;color:#888}
-        </style></head><body>
-          ${bodyText.split(/\n{2,}/).map(para => `<p>${para.trim().replace(/\n/g, '<br>')}</p>`).join('\n')}
-          <div class="unsub"><a href="mailto:${tpl.fromEmail}?subject=Unsubscribe">Unsubscribe</a></div>
-        </body></html>`;
+        // Well-structured HTML that passes spam filters:
+        // - Plain inline styles only (no external CSS)
+        // - Good text-to-HTML ratio (body is mostly real text)
+        // - No images, no tracking pixels
+        // - Proper unsubscribe footer
+        const htmlParas = bodyText
+          .split(/\n{2,}/)
+          .map(para => `<p style="margin:0 0 18px;line-height:1.7">${para.trim().replace(/\n/g, '<br>')}</p>`)
+          .join('\n          ');
+
+        const bodyHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${subject}</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 0">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden">
+        <tr><td style="padding:32px 40px 8px">
+          <div style="font-size:15px;color:#1a1a1a">
+          ${htmlParas}
+          </div>
+        </td></tr>
+        <tr><td style="padding:16px 40px 32px;border-top:1px solid #f0f0f0">
+          <p style="margin:0;font-size:12px;color:#999;line-height:1.6">
+            You are receiving this email because your business was identified as a potential fit.<br>
+            To unsubscribe, <a href="mailto:${tpl.fromEmail}?subject=Unsubscribe%20${encodeURIComponent(lead.email)}" style="color:#999">click here</a> or reply with "Unsubscribe".
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+        // Recipient with name if available (improves deliverability)
+        const toAddress = lead.ownerName
+          ? `${lead.ownerName} <${lead.email}>`
+          : lead.email;
 
         const payload = {
-          from: `${tpl.fromName} <${tpl.fromEmail}>`,
-          to:   [lead.email],
+          from:    `${tpl.fromName} <${tpl.fromEmail}>`,
+          to:      [toAddress],
           subject,
-          html: bodyHtml,
-          text: bodyText + '\n\n---\nTo unsubscribe reply with "Unsubscribe"',
+          html:    bodyHtml,
+          // Plain-text is the most important spam-filter signal — keep it clean
+          text:    bodyText + `\n\n---\nYou received this because your business was identified as a potential fit.\nTo unsubscribe reply "Unsubscribe" or email ${tpl.fromEmail}`,
           headers: {
-            'X-Entity-Ref-ID': `helix-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
-            'List-Unsubscribe': `<mailto:${tpl.fromEmail}?subject=Unsubscribe>`
+            // Unique message ID prevents threading across recipients
+            'X-Entity-Ref-ID':       `helix-${Date.now()}-${Math.random().toString(36).slice(2,10)}`,
+            // RFC-compliant unsubscribe (required by Gmail/Yahoo bulk sender rules)
+            'List-Unsubscribe':      `<mailto:${tpl.fromEmail}?subject=Unsubscribe>`,
+            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+            // Precedence header signals transactional, not marketing blast
+            'Precedence':            'bulk'
           }
         };
 

@@ -1393,6 +1393,32 @@
     eventSource.addEventListener('error', e => { try { addLog({ type: 'error', message: JSON.parse(e.data).message }); } catch {} setRunningUI(false); });
   }
 
+  const SETTINGS_KEY = 'helix_scrape_settings_v1';
+
+  function saveSettings(s) {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {}
+  }
+
+  function loadSettings() {
+    try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null'); } catch { return null; }
+  }
+
+  function applySettings(s) {
+    if (!s) return;
+    if (s.target)   $('inputTarget').value = s.target;
+    if (s.industry) $('inputIndustry').value = s.industry;
+    if (s.location) $('inputLocation').value = s.location;
+    if (Array.isArray(s.sources)) {
+      document.querySelectorAll('.source-chip').forEach(chip => {
+        const cb  = chip.querySelector('input');
+        const val = cb.value;
+        const on  = s.sources.includes(val);
+        cb.checked = on;
+        chip.classList.toggle('active', on);
+      });
+    }
+  }
+
   function setRunningUI(running) {
     $('btnStart').disabled = running;
     $('btnResume').disabled = running;
@@ -1407,28 +1433,55 @@
   }
 
   async function startScraper(resume) {
+    // If resuming, restore last saved settings first
+    if (resume) {
+      const saved = loadSettings();
+      if (saved) {
+        applySettings(saved);
+        addLog({ type: 'info', message: `Resuming with saved settings — target ${saved.target}, ${saved.sources ? saved.sources.join(', ') : 'all sources'}` });
+      }
+    }
+
     const body = {
-      target: parseInt($('inputTarget').value, 10) || 1000,
+      target:   parseInt($('inputTarget').value, 10) || 1000,
       resume,
-      sources: getSelectedSources(),
+      sources:  getSelectedSources(),
       industry: $('inputIndustry').value || null,
       location: $('inputLocation').value || null
     };
+
+    // Save settings to localStorage + server will persist to disk
+    saveSettings({ target: body.target, sources: body.sources, industry: body.industry, location: body.location });
+
     try {
       const r = await fetch('/api/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok) { addLog({ type: 'error', message: d.error || 'Failed to start' }); return; }
       setRunningUI(true);
       connectSSE();
-      addLog({ type: 'phase', message: `Starting — target ${body.target} leads` });
+      addLog({ type: 'phase', message: `${resume ? 'Resuming' : 'Starting'} — target ${body.target} leads` });
     } catch (err) { addLog({ type: 'error', message: 'Network error: ' + err.message }); }
   }
 
   $('btnStart').addEventListener('click', () => startScraper(false));
   $('btnResume').addEventListener('click', () => startScraper(true));
   $('btnStop').addEventListener('click', async () => {
-    try { await fetch('/api/stop', { method: 'POST' }); addLog({ type: 'warn', message: 'Stop requested...' }); } catch (e) { addLog({ type: 'error', message: e.message }); }
+    try {
+      await fetch('/api/stop', { method: 'POST' });
+      addLog({ type: 'warn', message: 'Stop requested — finishing active requests...' });
+    } catch (e) { addLog({ type: 'error', message: e.message }); }
   });
+
+  // Restore last settings on page load (so Resume always has something to restore)
+  (async () => {
+    // Try server first, fall back to localStorage
+    try {
+      const r = await fetch('/api/last-settings');
+      const s = await r.json();
+      if (s) { saveSettings(s); applySettings(s); return; }
+    } catch {}
+    applySettings(loadSettings());
+  })();
 
   // On startup: load localStorage immediately (instant), then sync from server
   function initLeads() {
