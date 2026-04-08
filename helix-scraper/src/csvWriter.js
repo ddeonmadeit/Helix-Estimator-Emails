@@ -18,11 +18,13 @@ class CsvWriter {
       fs.mkdirSync(config.OUTPUT_DIR, { recursive: true });
     }
 
-    if (resume && fs.existsSync(CSV_PATH)) {
-      // Append mode
+    const fileExists = fs.existsSync(CSV_PATH);
+
+    if (fileExists) {
+      // Always append if file exists (never overwrite)
       this.fd = fs.openSync(CSV_PATH, 'a');
     } else {
-      // New file
+      // Create new file with headers
       this.fd = fs.openSync(CSV_PATH, 'w');
       fs.writeSync(this.fd, CSV_HEADERS);
     }

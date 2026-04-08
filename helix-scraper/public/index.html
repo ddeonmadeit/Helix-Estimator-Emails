@@ -1062,6 +1062,7 @@
       <button class="btn btn-primary" id="btnStart">Start Scraping</button>
       <button class="btn btn-resume" id="btnResume">Resume</button>
       <button class="btn btn-stop" id="btnStop" disabled>Stop</button>
+      <button class="btn" id="btnBackup" style="background:var(--bg-glass);border:1px solid var(--border);color:var(--text-muted)">Backup to CSV</button>
     </div>
   </div>
 
@@ -1700,6 +1701,34 @@
     refreshSendMeta();
     addSendLog('Sent history cleared', 'info');
     $('sendProgressWrap').classList.add('visible');
+  });
+
+  $('btnBackup').addEventListener('click', async () => {
+    const btn = $('btnBackup');
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Backing up…';
+    try {
+      const r = await fetch('/api/export-csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leads: cachedLeads })
+      });
+      const d = await r.json();
+      if (r.ok) {
+        btn.textContent = `✓ Saved ${d.count} leads`;
+        addLog({ type: 'success', message: `Backed up ${d.count} leads to CSV` });
+        setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 2500);
+      } else {
+        btn.textContent = orig;
+        btn.disabled = false;
+        alert('Backup failed: ' + d.error);
+      }
+    } catch (err) {
+      btn.textContent = orig;
+      btn.disabled = false;
+      alert('Backup error: ' + err.message);
+    }
   });
 
   $('btnTestEmail').addEventListener('click', async () => {

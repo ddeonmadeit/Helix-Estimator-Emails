@@ -249,6 +249,49 @@ app.get('/api/leads', (req, res) => {
     .on('error', () => res.json({ leads: pipeline ? (pipeline.recentLeads || []) : [] }));
 });
 
+// Export leads from browser localStorage as CSV (to save your current 403 leads)
+app.post('/api/export-csv', (req, res) => {
+  const { leads } = req.body;
+  if (!Array.isArray(leads) || leads.length === 0) {
+    return res.status(400).json({ error: 'No leads provided' });
+  }
+
+  const CSV_HEADERS = 'Email,Owner Name,Company Name,Website,Industry,Location,Email Type,Quality Score,Source\n';
+
+  const escapeCsv = (field) => {
+    if (!field) return '';
+    const str = String(field);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  };
+
+  let csv = CSV_HEADERS;
+  for (const lead of leads) {
+    const row = [
+      lead.email,
+      lead.ownerName,
+      lead.companyName,
+      lead.website,
+      lead.industry,
+      lead.location,
+      lead.emailType,
+      lead.qualityScore,
+      lead.source
+    ].map(escapeCsv).join(',') + '\n';
+    csv += row;
+  }
+
+  try {
+    const csvPath = path.join(config.OUTPUT_DIR, 'Helix Leads.csv');
+    fs.writeFileSync(csvPath, csv);
+    res.json({ ok: true, count: leads.length, saved: csvPath });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/events', (req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
   res.write(`event: connected\ndata: ${JSON.stringify({ time: Date.now() })}\n\n`);
