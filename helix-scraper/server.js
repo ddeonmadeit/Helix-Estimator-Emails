@@ -96,20 +96,16 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
   <title>${subject}</title>
   <style>
     /* Light mode defaults */
-    .body-text { color: #1a1a1a !important; }
-    .meta-text  { color: #555555 !important; }
+    .body-text  { color: #1a1a1a !important; }
     .footer-text{ color: #888888 !important; }
     .footer-link{ color: #888888 !important; }
-    .card-td    { border: 1px solid #e0e0e0 !important; }
     .divider-td { background-color: #e0e0e0 !important; }
 
     /* Dark mode overrides */
     @media (prefers-color-scheme: dark) {
       .body-text  { color: #f0ece4 !important; }
-      .meta-text  { color: #aaaaaa !important; }
       .footer-text{ color: #666666 !important; }
       .footer-link{ color: #666666 !important; }
-      .card-td    { border-color: #3a3a3a !important; }
       .divider-td { background-color: #3a3a3a !important; }
     }
   </style>
@@ -119,70 +115,55 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
   <!-- Outer wrapper -->
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
     <tr>
-      <td align="center" style="padding:40px 16px 32px">
+      <td style="padding:32px 24px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
 
-        <!-- Content column -->
-        <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%">
-
-          <!-- Logo (centred, no text) -->
+        <!-- Logo -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td align="center" style="padding-bottom:28px">
+            <td style="padding-bottom:28px">
               <img src="https://image2url.com/r2/default/images/1775285198680-f6aff5b3-8565-4dfe-9136-83b95958fffa.png"
                    width="52" height="52" alt="Helix"
                    style="display:block;border-radius:12px;width:52px;height:52px">
             </td>
           </tr>
+        </table>
 
-          <!-- Card -->
+        <!-- Body text -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td class="card-td" style="border-radius:16px;overflow:hidden">
-
-              <!-- Teal top line (full width) -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td bgcolor="#00d4d4" style="background-color:#00d4d4;height:3px;font-size:0;line-height:0">&nbsp;</td>
-                </tr>
-              </table>
-
-              <!-- Body -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td style="padding:40px 48px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-                    ${htmlParas}
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Divider -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr><td class="divider-td" style="height:1px;font-size:0;line-height:0">&nbsp;</td></tr>
-              </table>
-
-              <!-- CTA -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td align="center" style="padding:32px 48px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-                    <p class="meta-text" style="margin:0 0 22px;font-size:13px;letter-spacing:0.3px">Interested? Lock in a time below</p>
-                    <a href="https://cal.com/helix-solutions/helix-app" target="_blank"
-                       style="display:inline-block;padding:14px 38px;background-color:#00d4d4;color:#1a1a1a;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;letter-spacing:0.3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-                      Book a Meeting
-                    </a>
-                    <p style="margin:18px 0 0">
-                      <a href="https://helixsolution.au" target="_blank"
-                         style="color:#00d4d4;font-size:13px;font-weight:600;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-                        helixsolution.au
-                      </a>
-                    </p>
-                  </td>
-                </tr>
-              </table>
-
+            <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding-bottom:32px">
+              ${htmlParas}
             </td>
           </tr>
+        </table>
 
-          <!-- Footer -->
+        <!-- CTA -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td align="center" style="padding:24px 8px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+            <td style="padding-bottom:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+              <a href="https://cal.com/helix-solutions/helix-app" target="_blank"
+                 style="display:inline-block;padding:14px 38px;background-color:#00d4d4;color:#1a1a1a;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;letter-spacing:0.3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+                Book a Meeting
+              </a>
+              <p style="margin:14px 0 0">
+                <a href="https://helixsolution.au" target="_blank"
+                   style="color:#00d4d4;font-size:13px;font-weight:600;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+                  helixsolution.au
+                </a>
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Divider -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:32px">
+          <tr><td class="divider-td" style="height:1px;font-size:0;line-height:0">&nbsp;</td></tr>
+        </table>
+
+        <!-- Footer -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="padding:20px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
               <p class="footer-text" style="margin:0;font-size:11px;line-height:1.7">
                 You received this because your business was identified as a potential fit.<br>
                 <a href="mailto:${tpl.fromEmail}?subject=Unsubscribe%20${encodeURIComponent(recipientEmail)}"
@@ -190,8 +171,8 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
               </p>
             </td>
           </tr>
-
         </table>
+
       </td>
     </tr>
   </table>
