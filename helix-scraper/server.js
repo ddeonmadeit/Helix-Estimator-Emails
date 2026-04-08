@@ -175,6 +175,71 @@ app.get('/api/events', (req, res) => {
 });
 
 // ═══════════════════════════════════════════════
+// Test email
+// ═══════════════════════════════════════════════
+
+app.post('/api/send/test', async (req, res) => {
+  const tpl = loadTemplate();
+  if (!tpl.fromEmail)              return res.status(400).json({ error: 'Set a From Email in the template first' });
+  if (!process.env.RESEND_API_KEY) return res.status(400).json({ error: 'RESEND_API_KEY is not set' });
+
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
+  // Sample lead for merge tag preview
+  const sampleLead = {
+    email: 'knots.raw@gmail.com',
+    ownerName: 'John Smith',
+    companyName: 'Acme Construction',
+    industry: 'Builder',
+    location: 'Sydney'
+  };
+
+  const subject  = applyMergeTags(tpl.subject, sampleLead, tpl);
+  const bodyText = applyMergeTags(tpl.body, sampleLead, tpl);
+
+  const htmlParas = bodyText
+    .split(/\n{2,}/)
+    .map(para => `<p style="margin:0 0 18px;line-height:1.7">${para.trim().replace(/\n/g, '<br>')}</p>`)
+    .join('\n          ');
+
+  const bodyHtml = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>${subject}</title></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 0">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden">
+        <tr><td style="padding:12px 24px;background:#0a0a0f;font-size:11px;color:#00d4d4;font-weight:600;letter-spacing:1px">TEST EMAIL — Helix Outreach</td></tr>
+        <tr><td style="padding:32px 40px 8px">
+          <div style="font-size:15px;color:#1a1a1a">${htmlParas}</div>
+        </td></tr>
+        <tr><td style="padding:16px 40px 32px;border-top:1px solid #f0f0f0">
+          <p style="margin:0;font-size:12px;color:#999">
+            This is a test email sent from Helix Outreach.<br>
+            Sample data: ${sampleLead.ownerName} · ${sampleLead.companyName} · ${sampleLead.location}
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+  try {
+    await resend.emails.send({
+      from:      `${tpl.fromName} <${tpl.fromEmail}>`,
+      to:        ['knots.raw@gmail.com'],
+      subject:   `[TEST] ${subject}`,
+      html:      bodyHtml,
+      text:      `[TEST EMAIL]\n\n${bodyText}`,
+      reply_to:  tpl.replyTo || tpl.fromEmail
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════
 // Email template routes
 // ═══════════════════════════════════════════════
 
