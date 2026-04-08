@@ -77,7 +77,60 @@ function applyMergeTags(str, lead, tpl) {
     .replace(/\{\{senderName\}\}/g, tpl.fromName || '');
 }
 
-// ── Delay helper ──
+// ── Email HTML builder ──
+function buildEmailHtml(subject, bodyText, lead, tpl, isTest = false) {
+  const htmlParas = bodyText
+    .split(/\n{2,}/)
+    .map(para => `<p style="margin:0 0 18px;line-height:1.7">${para.trim().replace(/\n/g, '<br>')}</p>`)
+    .join('\n          ');
+
+  const testBanner = isTest
+    ? `<tr><td style="padding:10px 24px;background:#0a0a0f;font-size:11px;color:#00d4d4;font-weight:600;letter-spacing:1px">TEST EMAIL — Helix Outreach</td></tr>`
+    : '';
+
+  const recipientEmail = (lead && lead.email) ? lead.email : tpl.fromEmail;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${subject}</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 0">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden">
+        ${testBanner}
+        <tr><td style="padding:32px 40px 8px">
+          <div style="font-size:15px;color:#1a1a1a">
+          ${htmlParas}
+          </div>
+        </td></tr>
+        <tr><td style="padding:24px 40px;text-align:center;border-top:1px solid #f0f0f0">
+          <a href="https://cal.com/helix-solutions/helix-app" target="_blank"
+             style="display:inline-block;padding:14px 32px;background:#00d4d4;color:#0a0a0f;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;letter-spacing:0.3px">
+            📅 Book a Meeting
+          </a>
+          <p style="margin:12px 0 0">
+            <a href="https://helixsolution.au" target="_blank"
+               style="color:#00d4d4;font-size:13px;font-weight:600;text-decoration:none">
+              helixsolution.au
+            </a>
+          </p>
+        </td></tr>
+        <tr><td style="padding:16px 40px 28px;border-top:1px solid #f0f0f0">
+          <p style="margin:0;font-size:12px;color:#999;line-height:1.6">
+            You are receiving this email because your business was identified as a potential fit.<br>
+            To unsubscribe, <a href="mailto:${tpl.fromEmail}?subject=Unsubscribe%20${encodeURIComponent(recipientEmail)}" style="color:#999">click here</a> or reply with "Unsubscribe".
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ── Active send job (one at a time) ──
@@ -196,33 +249,7 @@ app.post('/api/send/test', async (req, res) => {
 
   const subject  = applyMergeTags(tpl.subject, sampleLead, tpl);
   const bodyText = applyMergeTags(tpl.body, sampleLead, tpl);
-
-  const htmlParas = bodyText
-    .split(/\n{2,}/)
-    .map(para => `<p style="margin:0 0 18px;line-height:1.7">${para.trim().replace(/\n/g, '<br>')}</p>`)
-    .join('\n          ');
-
-  const bodyHtml = `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>${subject}</title></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 0">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden">
-        <tr><td style="padding:12px 24px;background:#0a0a0f;font-size:11px;color:#00d4d4;font-weight:600;letter-spacing:1px">TEST EMAIL — Helix Outreach</td></tr>
-        <tr><td style="padding:32px 40px 8px">
-          <div style="font-size:15px;color:#1a1a1a">${htmlParas}</div>
-        </td></tr>
-        <tr><td style="padding:16px 40px 32px;border-top:1px solid #f0f0f0">
-          <p style="margin:0;font-size:12px;color:#999">
-            This is a test email sent from Helix Outreach.<br>
-            Sample data: ${sampleLead.ownerName} · ${sampleLead.companyName} · ${sampleLead.location}
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
+  const bodyHtml = buildEmailHtml(subject, bodyText, sampleLead, tpl, true);
 
   try {
     await resend.emails.send({
@@ -311,43 +338,7 @@ app.post('/api/send/start', async (req, res) => {
         const bodyText = applyMergeTags(tpl.body, lead, tpl);
         const firstName = (lead.ownerName || '').split(' ')[0] || 'there';
 
-        // Well-structured HTML that passes spam filters:
-        // - Plain inline styles only (no external CSS)
-        // - Good text-to-HTML ratio (body is mostly real text)
-        // - No images, no tracking pixels
-        // - Proper unsubscribe footer
-        const htmlParas = bodyText
-          .split(/\n{2,}/)
-          .map(para => `<p style="margin:0 0 18px;line-height:1.7">${para.trim().replace(/\n/g, '<br>')}</p>`)
-          .join('\n          ');
-
-        const bodyHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${subject}</title>
-</head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 0">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden">
-        <tr><td style="padding:32px 40px 8px">
-          <div style="font-size:15px;color:#1a1a1a">
-          ${htmlParas}
-          </div>
-        </td></tr>
-        <tr><td style="padding:16px 40px 32px;border-top:1px solid #f0f0f0">
-          <p style="margin:0;font-size:12px;color:#999;line-height:1.6">
-            You are receiving this email because your business was identified as a potential fit.<br>
-            To unsubscribe, <a href="mailto:${tpl.fromEmail}?subject=Unsubscribe%20${encodeURIComponent(lead.email)}" style="color:#999">click here</a> or reply with "Unsubscribe".
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+        const bodyHtml = buildEmailHtml(subject, bodyText, lead, tpl);
 
         // Recipient with name if available (improves deliverability)
         const toAddress = lead.ownerName
