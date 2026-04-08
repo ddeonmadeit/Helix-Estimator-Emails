@@ -81,7 +81,7 @@ function applyMergeTags(str, lead, tpl) {
 function buildEmailHtml(subject, bodyText, lead, tpl) {
   const htmlParas = bodyText
     .split(/\n{2,}/)
-    .map(para => `<p style="margin:0 0 20px;line-height:1.75;color:#e8e8e8;font-size:15px">${para.trim().replace(/\n/g, '<br>')}</p>`)
+    .map(para => `<p style="margin:0 0 20px;line-height:1.75;color:#f0ece4;font-size:15px">${para.trim().replace(/\n/g, '<br>')}</p>`)
     .join('\n          ');
 
   const recipientEmail = (lead && lead.email) ? lead.email : tpl.fromEmail;
@@ -93,8 +93,8 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${subject}</title>
 </head>
-<body style="margin:0;padding:0;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:32px 0">
+<body style="margin:0;padding:0;background:#2b2b2b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#2b2b2b;padding:32px 0">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%">
 
@@ -109,7 +109,7 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
         </td></tr>
 
         <!-- Main card -->
-        <tr><td style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden">
+        <tr><td style="background:#333333;border:1px solid rgba(255,255,255,0.1);border-radius:16px;overflow:hidden">
 
           <!-- Top accent line -->
           <table width="100%" cellpadding="0" cellspacing="0">
