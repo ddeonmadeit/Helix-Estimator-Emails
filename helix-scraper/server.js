@@ -81,26 +81,43 @@ function applyMergeTags(str, lead, tpl) {
 function buildEmailHtml(subject, bodyText, lead, tpl) {
   const htmlParas = bodyText
     .split(/\n{2,}/)
-    .map(para => `<p style="margin:0 0 20px;line-height:1.8;color:#f0ece4;font-size:15px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">${para.trim().replace(/\n/g, '<br>')}</p>`)
+    .map(para => `<p class="body-text" style="margin:0 0 20px;line-height:1.8;font-size:15px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">${para.trim().replace(/\n/g, '<br>')}</p>`)
     .join('\n');
 
   const recipientEmail = (lead && lead.email) ? lead.email : tpl.fromEmail;
 
-  // bgcolor attribute is required — Gmail strips CSS background on body/table
   return `<!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <meta name="supported-color-schemes" content="dark">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <title>${subject}</title>
-  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+  <style>
+    /* Light mode defaults */
+    .body-text { color: #1a1a1a !important; }
+    .meta-text  { color: #555555 !important; }
+    .footer-text{ color: #888888 !important; }
+    .footer-link{ color: #888888 !important; }
+    .card-td    { border: 1px solid #e0e0e0 !important; }
+    .divider-td { background-color: #e0e0e0 !important; }
+
+    /* Dark mode overrides */
+    @media (prefers-color-scheme: dark) {
+      .body-text  { color: #f0ece4 !important; }
+      .meta-text  { color: #aaaaaa !important; }
+      .footer-text{ color: #666666 !important; }
+      .footer-link{ color: #666666 !important; }
+      .card-td    { border-color: #3a3a3a !important; }
+      .divider-td { background-color: #3a3a3a !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#2d2d2d" bgcolor="#2d2d2d">
+<body style="margin:0;padding:0">
 
   <!-- Outer wrapper -->
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#2d2d2d" style="background-color:#2d2d2d">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
     <tr>
       <td align="center" style="padding:40px 16px 32px">
 
@@ -118,14 +135,12 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
 
           <!-- Card -->
           <tr>
-            <td bgcolor="#383838" style="background-color:#383838;border-radius:16px;border:1px solid #4a4a4a;overflow:hidden">
+            <td class="card-td" style="border-radius:16px;overflow:hidden">
 
-              <!-- Teal top line -->
+              <!-- Teal top line (full width) -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td width="30%" bgcolor="#383838" style="background-color:#383838;height:3px;font-size:0;line-height:0">&nbsp;</td>
-                  <td width="40%" bgcolor="#00d4d4" style="background-color:#00d4d4;height:3px;font-size:0;line-height:0">&nbsp;</td>
-                  <td width="30%" bgcolor="#383838" style="background-color:#383838;height:3px;font-size:0;line-height:0">&nbsp;</td>
+                  <td bgcolor="#00d4d4" style="background-color:#00d4d4;height:3px;font-size:0;line-height:0">&nbsp;</td>
                 </tr>
               </table>
 
@@ -140,14 +155,14 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
 
               <!-- Divider -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr><td bgcolor="#4a4a4a" style="background-color:#4a4a4a;height:1px;font-size:0;line-height:0">&nbsp;</td></tr>
+                <tr><td class="divider-td" style="height:1px;font-size:0;line-height:0">&nbsp;</td></tr>
               </table>
 
               <!-- CTA -->
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td align="center" style="padding:32px 48px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-                    <p style="margin:0 0 22px;font-size:13px;color:#999999;letter-spacing:0.3px">Interested? Lock in a time below</p>
+                    <p class="meta-text" style="margin:0 0 22px;font-size:13px;letter-spacing:0.3px">Interested? Lock in a time below</p>
                     <a href="https://cal.com/helix-solutions/helix-app" target="_blank"
                        style="display:inline-block;padding:14px 38px;background-color:#00d4d4;color:#1a1a1a;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;letter-spacing:0.3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
                       Book a Meeting
@@ -168,10 +183,10 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
           <!-- Footer -->
           <tr>
             <td align="center" style="padding:24px 8px 8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-              <p style="margin:0;font-size:11px;color:#666666;line-height:1.7">
+              <p class="footer-text" style="margin:0;font-size:11px;line-height:1.7">
                 You received this because your business was identified as a potential fit.<br>
                 <a href="mailto:${tpl.fromEmail}?subject=Unsubscribe%20${encodeURIComponent(recipientEmail)}"
-                   style="color:#666666;text-decoration:underline">Unsubscribe</a>
+                   class="footer-link" style="text-decoration:underline">Unsubscribe</a>
               </p>
             </td>
           </tr>
