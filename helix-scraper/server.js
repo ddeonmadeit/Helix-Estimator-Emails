@@ -78,15 +78,11 @@ function applyMergeTags(str, lead, tpl) {
 }
 
 // ── Email HTML builder ──
-function buildEmailHtml(subject, bodyText, lead, tpl, isTest = false) {
+function buildEmailHtml(subject, bodyText, lead, tpl) {
   const htmlParas = bodyText
     .split(/\n{2,}/)
-    .map(para => `<p style="margin:0 0 18px;line-height:1.7">${para.trim().replace(/\n/g, '<br>')}</p>`)
+    .map(para => `<p style="margin:0 0 20px;line-height:1.75;color:#e8e8e8;font-size:15px">${para.trim().replace(/\n/g, '<br>')}</p>`)
     .join('\n          ');
-
-  const testBanner = isTest
-    ? `<tr><td style="padding:10px 24px;background:#0a0a0f;font-size:11px;color:#00d4d4;font-weight:600;letter-spacing:1px">TEST EMAIL — Helix Outreach</td></tr>`
-    : '';
 
   const recipientEmail = (lead && lead.email) ? lead.email : tpl.fromEmail;
 
@@ -97,34 +93,68 @@ function buildEmailHtml(subject, bodyText, lead, tpl, isTest = false) {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${subject}</title>
 </head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 0">
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:32px 0">
     <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden">
-        ${testBanner}
-        <tr><td style="padding:32px 40px 8px">
-          <div style="font-size:15px;color:#1a1a1a">
-          ${htmlParas}
-          </div>
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%">
+
+        <!-- Logo / brand bar -->
+        <tr><td style="padding:0 0 24px;text-align:center">
+          <img src="https://image2url.com/r2/default/images/1775285198680-f6aff5b3-8565-4dfe-9136-83b95958fffa.png"
+               width="40" height="40" alt="Helix"
+               style="border-radius:10px 4px 10px 10px;display:inline-block;vertical-align:middle;margin-right:10px">
+          <span style="font-size:18px;font-weight:700;color:#ffffff;vertical-align:middle">
+            <span style="color:#00d4d4">Helix</span> Solutions
+          </span>
         </td></tr>
-        <tr><td style="padding:24px 40px;text-align:center;border-top:1px solid #f0f0f0">
-          <a href="https://cal.com/helix-solutions/helix-app" target="_blank"
-             style="display:inline-block;padding:14px 32px;background:#00d4d4;color:#0a0a0f;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;letter-spacing:0.3px">
-            📅 Book a Meeting
-          </a>
-          <p style="margin:12px 0 0">
-            <a href="https://helixsolution.au" target="_blank"
-               style="color:#00d4d4;font-size:13px;font-weight:600;text-decoration:none">
-              helixsolution.au
-            </a>
+
+        <!-- Main card -->
+        <tr><td style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;overflow:hidden">
+
+          <!-- Top accent line -->
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td width="33%" style="height:2px;background:transparent"></td>
+              <td width="34%" style="height:2px;background:linear-gradient(90deg,transparent,#00d4d4,transparent)"></td>
+              <td width="33%" style="height:2px;background:transparent"></td>
+            </tr>
+          </table>
+
+          <!-- Body text -->
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td style="padding:36px 44px 28px">
+              ${htmlParas}
+            </td></tr>
+          </table>
+
+          <!-- CTA section -->
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td style="padding:28px 44px 36px;text-align:center;border-top:1px solid rgba(255,255,255,0.07)">
+              <p style="margin:0 0 20px;font-size:13px;color:rgba(255,255,255,0.45);letter-spacing:0.3px">Interested? Lock in a time below</p>
+              <a href="https://cal.com/helix-solutions/helix-app" target="_blank"
+                 style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#00d4d4,#00a8a8);color:#0a0a0f;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;letter-spacing:0.3px;box-shadow:0 4px 20px rgba(0,212,212,0.25)">
+                Book a Meeting
+              </a>
+              <p style="margin:16px 0 0">
+                <a href="https://helixsolution.au" target="_blank"
+                   style="color:#00d4d4;font-size:13px;font-weight:600;text-decoration:none;opacity:0.85">
+                  helixsolution.au
+                </a>
+              </p>
+            </td></tr>
+          </table>
+
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:24px 8px 8px;text-align:center">
+          <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.2);line-height:1.7">
+            You received this because your business was identified as a potential fit.<br>
+            <a href="mailto:${tpl.fromEmail}?subject=Unsubscribe%20${encodeURIComponent(recipientEmail)}"
+               style="color:rgba(255,255,255,0.2);text-decoration:underline">Unsubscribe</a>
           </p>
         </td></tr>
-        <tr><td style="padding:16px 40px 28px;border-top:1px solid #f0f0f0">
-          <p style="margin:0;font-size:12px;color:#999;line-height:1.6">
-            You are receiving this email because your business was identified as a potential fit.<br>
-            To unsubscribe, <a href="mailto:${tpl.fromEmail}?subject=Unsubscribe%20${encodeURIComponent(recipientEmail)}" style="color:#999">click here</a> or reply with "Unsubscribe".
-          </p>
-        </td></tr>
+
       </table>
     </td></tr>
   </table>
@@ -249,15 +279,15 @@ app.post('/api/send/test', async (req, res) => {
 
   const subject  = applyMergeTags(tpl.subject, sampleLead, tpl);
   const bodyText = applyMergeTags(tpl.body, sampleLead, tpl);
-  const bodyHtml = buildEmailHtml(subject, bodyText, sampleLead, tpl, true);
+  const bodyHtml = buildEmailHtml(subject, bodyText, sampleLead, tpl);
 
   try {
     await resend.emails.send({
       from:      `${tpl.fromName} <${tpl.fromEmail}>`,
       to:        ['knots.raw@gmail.com'],
-      subject:   `[TEST] ${subject}`,
+      subject,
       html:      bodyHtml,
-      text:      `[TEST EMAIL]\n\n${bodyText}`,
+      text:      bodyText + `\n\n---\nBook a meeting: https://cal.com/helix-solutions/helix-app\nTo unsubscribe reply "Unsubscribe"`,
       reply_to:  tpl.replyTo || tpl.fromEmail
     });
     res.json({ ok: true });
@@ -351,7 +381,7 @@ app.post('/api/send/start', async (req, res) => {
           subject,
           html:    bodyHtml,
           // Plain-text is the most important spam-filter signal — keep it clean
-          text:    bodyText + `\n\n---\nYou received this because your business was identified as a potential fit.\nTo unsubscribe reply "Unsubscribe" or email ${tpl.fromEmail}`,
+          text:    bodyText + `\n\n---\nBook a meeting: https://cal.com/helix-solutions/helix-app\nhelixsolution.au\n\nTo unsubscribe reply "Unsubscribe" or email ${tpl.fromEmail}`,
           headers: {
             // Unique message ID prevents threading across recipients
             'X-Entity-Ref-ID':       `helix-${Date.now()}-${Math.random().toString(36).slice(2,10)}`,
