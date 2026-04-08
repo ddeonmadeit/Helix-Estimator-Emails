@@ -81,7 +81,7 @@ function applyMergeTags(str, lead, tpl) {
 function buildEmailHtml(subject, bodyText, lead, tpl) {
   const htmlParas = bodyText
     .split(/\n{2,}/)
-    .map(para => `<p class="body-text" style="margin:0 0 20px;line-height:1.8;font-size:15px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">${para.trim().replace(/\n/g, '<br>')}</p>`)
+    .map(para => `<p class="body-text" style="margin:0 0 20px;line-height:1.8;font-size:15px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">${para.trim().replace(/\n/g, '<br>')}</p>`)
     .join('\n');
 
   const recipientEmail = (lead && lead.email) ? lead.email : tpl.fromEmail;
@@ -115,12 +115,12 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
   <!-- Outer wrapper -->
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
     <tr>
-      <td style="padding:32px 24px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+      <td align="center" style="padding:32px 24px 0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
 
         <!-- Logo -->
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td style="padding-bottom:28px">
+            <td align="center" style="padding-bottom:28px">
               <img src="https://image2url.com/r2/default/images/1775285198680-f6aff5b3-8565-4dfe-9136-83b95958fffa.png"
                    width="52" height="52" alt="Helix"
                    style="display:block;border-radius:12px;width:52px;height:52px">
@@ -131,7 +131,7 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
         <!-- Body text -->
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding-bottom:32px">
+            <td align="center" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding-bottom:32px">
               ${htmlParas}
             </td>
           </tr>
@@ -140,12 +140,12 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
         <!-- CTA -->
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td style="padding-bottom:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+            <td align="center" style="padding-bottom:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
               <a href="https://cal.com/helix-solutions/helix-app" target="_blank"
                  style="display:inline-block;padding:14px 38px;background-color:#00d4d4;color:#1a1a1a;font-weight:700;font-size:14px;text-decoration:none;border-radius:100px;letter-spacing:0.3px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
                 Book a Meeting
               </a>
-              <p style="margin:14px 0 0">
+              <p style="margin:14px 0 0;text-align:center">
                 <a href="https://helixsolution.au" target="_blank"
                    style="color:#00d4d4;font-size:13px;font-weight:600;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
                   helixsolution.au
@@ -163,8 +163,8 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
         <!-- Footer -->
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td style="padding:20px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
-              <p class="footer-text" style="margin:0;font-size:11px;line-height:1.7">
+            <td align="center" style="padding:20px 0 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif">
+              <p class="footer-text" style="margin:0;font-size:11px;line-height:1.7;text-align:center">
                 You received this because your business was identified as a potential fit.<br>
                 <a href="mailto:${tpl.fromEmail}?subject=Unsubscribe%20${encodeURIComponent(recipientEmail)}"
                    class="footer-link" style="text-decoration:underline">Unsubscribe</a>
