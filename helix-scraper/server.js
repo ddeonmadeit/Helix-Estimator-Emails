@@ -19,6 +19,7 @@ const SENT_PATH       = path.join(config.OUTPUT_DIR, 'sent.json');
 const TEMPLATE_PATH   = path.join(config.OUTPUT_DIR, 'template.json');
 const SETTINGS_PATH   = path.join(config.OUTPUT_DIR, 'last-settings.json');
 const SEND_QUEUE_PATH = path.join(config.OUTPUT_DIR, 'send-queue.json');
+const REMOVED_PATH    = path.join(config.OUTPUT_DIR, 'removed-leads.json');
 
 function ensureOutputDir() {
   if (!fs.existsSync(config.OUTPUT_DIR)) fs.mkdirSync(config.OUTPUT_DIR, { recursive: true });
@@ -407,6 +408,36 @@ app.post('/api/template', (req, res) => {
 
 app.get('/api/ping', (req, res) => res.json({ ok: true }));
 
+// ── Removed leads (permanent email blocklist) ──
+function loadRemovedLeads() {
+  try { return new Set(JSON.parse(fs.readFileSync(REMOVED_PATH, 'utf8'))); }
+  catch { return new Set(); }
+}
+function saveRemovedLeads(set) {
+  ensureOutputDir();
+  fs.writeFileSync(REMOVED_PATH, JSON.stringify([...set]));
+}
+
+// GET /api/leads/removed — frontend fetches this on startup to filter localStorage
+app.get('/api/leads/removed', (req, res) => {
+  res.json([...loadRemovedLeads()]);
+});
+
+// POST /api/leads/remove — add emails to the permanent removal list
+app.post('/api/leads/remove', (req, res) => {
+  const { emails } = req.body;
+  if (!Array.isArray(emails) || emails.length === 0) return res.status(400).json({ error: 'emails array required' });
+  const set = loadRemovedLeads();
+  for (const e of emails) set.add(e.toLowerCase().trim());
+  saveRemovedLeads(set);
+  // Also remove from sent list so they don't show as "already sent"
+  const sentSet = loadSentEmails();
+  let changed = false;
+  for (const e of emails) { if (sentSet.delete(e.toLowerCase().trim())) changed = true; }
+  if (changed) saveSentEmails(sentSet);
+  res.json({ ok: true, removed: emails.length, total: set.size });
+});
+
 app.get('/api/sent', (req, res) => {
   const sent = loadSentEmails();
   res.json({ count: sent.size, emails: [...sent] });
@@ -551,6 +582,19 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  Helix Outreach UI running at http://0.0.0.0:${PORT}\n`);
+
+  // One-time removal of specific leads requested by user
+  const toRemove = [
+    'hello@builder.co',
+    'info@vandbuilders.com.au',
+    'customerservice@metricon.com.au',
+    'jason@thomsenbuild.com.au',
+    'info@builderssydneyexperts.com.au'
+  ];
+  const removedSet = loadRemovedLeads();
+  let added = false;
+  for (const e of toRemove) { if (!removedSet.has(e)) { removedSet.add(e); added = true; } }
+  if (added) { saveRemovedLeads(removedSet); console.log('  Seeded removed-leads list'); }
 
   // Auto-resume any send job that was interrupted by a server restart
   const pending = loadSendQueue();

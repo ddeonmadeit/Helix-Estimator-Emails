@@ -1511,8 +1511,24 @@
       renderLeadsTable();
     }
 
-    // 2. Sync from server CSV in the background (catches leads from other devices
-    //    or sessions where the browser wasn't open, and deduplicates)
+    // 2. Fetch removal list from server and purge any matching leads from localStorage
+    fetch('/api/leads/removed')
+      .then(r => r.json())
+      .then(removed => {
+        if (!removed.length) return;
+        const removedSet = new Set(removed.map(e => e.toLowerCase()));
+        const before = cachedLeads.length;
+        cachedLeads = cachedLeads.filter(l => !l.email || !removedSet.has(l.email.toLowerCase()));
+        cachedEmails = new Set(cachedLeads.map(l => l.email && l.email.toLowerCase()).filter(Boolean));
+        if (cachedLeads.length !== before) {
+          persistLeads();
+          renderLeadsTable();
+          refreshSendMeta();
+        }
+      })
+      .catch(() => {});
+
+    // 3. Sync from server CSV in the background
     fetch('/api/leads')
       .then(r => r.json())
       .then(({ leads }) => {
