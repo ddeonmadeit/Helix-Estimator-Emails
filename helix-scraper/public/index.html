@@ -1294,7 +1294,21 @@
 
   // ── Lead persistence via localStorage ──
   const LEADS_KEY = 'helix_leads_v1';
+  const SENT_KEY  = 'helix_sent_v1';
   const MAX_STORED = 1000;
+
+  // Sent emails — persisted in localStorage so dedup survives server restarts/redeploys
+  let localSentEmails = new Set();
+  function loadLocalSent() {
+    try { localSentEmails = new Set(JSON.parse(localStorage.getItem(SENT_KEY) || '[]')); } catch {}
+  }
+  function persistLocalSent() {
+    try { localStorage.setItem(SENT_KEY, JSON.stringify([...localSentEmails])); } catch {}
+  }
+  function markLocalSent(email) {
+    localSentEmails.add(email.toLowerCase());
+    persistLocalSent();
+  }
 
   // In-memory store (source of truth for the UI)
   let cachedLeads = [];
@@ -1601,20 +1615,12 @@
 
   let sendEventSource = null;
 
-  async function refreshSendMeta() {
+  function refreshSendMeta() {
     const total = cachedLeads.length;
     $('sendLeadsCount').textContent = total;
-    try {
-      const r = await fetch('/api/sent');
-      const { emails } = await r.json();
-      const sentSet = new Set(emails.map(e => e.toLowerCase()));
-      const unsent = cachedLeads.filter(l => l.email && !sentSet.has(l.email.toLowerCase())).length;
-      $('sendAlreadySent').textContent = total - unsent;
-      $('sendQueued').textContent = unsent;
-    } catch {
-      $('sendAlreadySent').textContent = '?';
-      $('sendQueued').textContent = total;
-    }
+    const unsent = cachedLeads.filter(l => l.email && !localSentEmails.has(l.email.toLowerCase())).length;
+    $('sendAlreadySent').textContent = total - unsent;
+    $('sendQueued').textContent = unsent;
   }
 
   function addSendLog(msg, type = 'info') {
@@ -1640,10 +1646,8 @@
     const tpl = getTemplateFromForm();
     if (!tpl.fromEmail) { alert('Please set a verified From Email in the template above.'); return; }
 
-    const r = await fetch('/api/sent');
-    const { emails: sentEmails } = await r.json();
-    const sentSet = new Set(sentEmails.map(e => e.toLowerCase()));
-    const leads = cachedLeads.filter(l => l.email && !sentSet.has(l.email.toLowerCase()));
+    // Use localStorage sent list as source of truth (survives server redeploys)
+    const leads = cachedLeads.filter(l => l.email && !localSentEmails.has(l.email.toLowerCase()));
 
     if (leads.length === 0) { alert('No unsent leads — all contacts have already been emailed.'); return; }
     if (!confirm(`Send to ${leads.length} unsent lead${leads.length !== 1 ? 's' : ''}?`)) return;
@@ -1655,7 +1659,8 @@
       const startRes = await fetch('/api/send/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leads, delayMin, delayMax })
+        // Pass clientSent so server merges it for dedup even if its sent.json was wiped
+        body: JSON.stringify({ leads, delayMin, delayMax, clientSent: [...localSentEmails] })
       });
       const startData = await startRes.json();
       if (!startRes.ok) { alert(startData.error || 'Failed to start'); return; }
@@ -1674,7 +1679,10 @@
         const pct = d.total ? Math.round((d.sent + d.failed) / d.total * 100) : 0;
         $('sendProgressFill').style.width = pct + '%';
         $('sendProgressCount').textContent = `${d.sent} / ${d.total}`;
-        if (d.status === 'sent')   addSendLog(`✓ ${d.current}`, 'ok');
+        if (d.status === 'sent') {
+          markLocalSent(d.current); // update localStorage immediately
+          addSendLog(`✓ ${d.current}`, 'ok');
+        }
         if (d.status === 'failed') addSendLog(`✗ ${d.current} — ${d.error || 'failed'}`, 'fail');
       });
 
@@ -1697,6 +1705,8 @@
 
   $('btnClearSent').addEventListener('click', async () => {
     if (!confirm('Clear all sent-email history? This means everyone can be emailed again.')) return;
+    localSentEmails.clear();
+    persistLocalSent();
     await fetch('/api/sent', { method: 'DELETE' });
     refreshSendMeta();
     addSendLog('Sent history cleared', 'info');
@@ -1758,6 +1768,7 @@
 
   connectSSE();
   initLeads();
+  loadLocalSent();
   refreshSendMeta();
 </script>
 </body>

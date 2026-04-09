@@ -196,6 +196,21 @@ function loadSendQueue() {
   catch { return null; }
 }
 
+// ── Keep-alive (prevents Railway free-tier sleep during a send job) ──
+let keepAliveTimer = null;
+function startKeepAlive() {
+  if (keepAliveTimer) return;
+  const domain = process.env.RAILWAY_PUBLIC_DOMAIN;
+  if (!domain) return;
+  const https = require('https');
+  keepAliveTimer = setInterval(() => {
+    https.get(`https://${domain}/api/ping`, res => res.resume()).on('error', () => {});
+  }, 20 * 60 * 1000); // every 20 min — Railway sleeps after 30 min idle
+}
+function stopKeepAlive() {
+  if (keepAliveTimer) { clearInterval(keepAliveTimer); keepAliveTimer = null; }
+}
+
 // ── Active send job (one at a time) ──
 let sendJob = null;
 
@@ -390,6 +405,8 @@ app.post('/api/template', (req, res) => {
 // Sent-email tracking
 // ═══════════════════════════════════════════════
 
+app.get('/api/ping', (req, res) => res.json({ ok: true }));
+
 app.get('/api/sent', (req, res) => {
   const sent = loadSentEmails();
   res.json({ count: sent.size, emails: [...sent] });
@@ -408,7 +425,7 @@ app.delete('/api/sent', (req, res) => {
 app.post('/api/send/start', async (req, res) => {
   if (sendJob && sendJob.running) return res.status(409).json({ error: 'A send job is already running' });
 
-  const { leads, delayMin = 2000, delayMax = 5000 } = req.body;
+  const { leads, delayMin = 2000, delayMax = 5000, clientSent = [] } = req.body;
 
   if (!Array.isArray(leads) || leads.length === 0) return res.status(400).json({ error: 'No leads provided' });
 
@@ -418,7 +435,11 @@ app.post('/api/send/start', async (req, res) => {
   if (!process.env.RESEND_API_KEY) return res.status(400).json({ error: 'RESEND_API_KEY environment variable is not set' });
 
   const resend = new Resend(process.env.RESEND_API_KEY);
+
+  // Merge server-side sent.json with client-side localStorage sent list
   const sentSet = loadSentEmails();
+  for (const e of clientSent) sentSet.add(e.toLowerCase());
+  saveSentEmails(sentSet); // persist the merged set immediately
 
   // Filter out already-sent emails
   const queue = leads.filter(l => l.email && !sentSet.has(l.email.toLowerCase()));
@@ -437,6 +458,7 @@ app.post('/api/send/start', async (req, res) => {
   // Persist queue so it survives server restarts
   saveSendQueue(queue, 0, { delayMin, delayMax });
 
+  startKeepAlive();
   runSendQueue(queue, 0, { delayMin, delayMax }, resend, sentSet);
 });
 
@@ -464,13 +486,12 @@ function broadcastSend(event, data) {
 async function runSendQueue(queue, startIndex, opts, resend, sentSet) {
   const { delayMin, delayMax } = opts;
   const tpl = loadTemplate();
-  let unsavedCount = 0;
 
   for (let i = startIndex; i < queue.length; i++) {
     if (sendJob.aborted) break;
     const lead = queue[i];
 
-    // Keep queue position on disk so a restart can resume from here
+    // Persist queue position every 5 emails so a restart resumes from near here
     if (i % 5 === 0) saveSendQueue(queue, i, opts);
 
     try {
@@ -495,9 +516,7 @@ async function runSendQueue(queue, startIndex, opts, resend, sentSet) {
       });
 
       sentSet.add(lead.email.toLowerCase());
-      unsavedCount++;
-      // Batch disk writes — flush every 5 sent emails
-      if (unsavedCount >= 5) { saveSentEmails(sentSet); unsavedCount = 0; }
+      saveSentEmails(sentSet); // write after every success so dedup is always accurate
       sendJob.sent++;
 
       broadcastSend('send_progress', { sent: sendJob.sent, total: sendJob.total, failed: sendJob.failed, current: lead.email, status: 'sent' });
@@ -513,9 +532,8 @@ async function runSendQueue(queue, startIndex, opts, resend, sentSet) {
     }
   }
 
-  // Final flush
-  if (unsavedCount > 0) saveSentEmails(sentSet);
   clearSendQueue();
+  stopKeepAlive();
   sendJob.running = false;
   broadcastSend('send_done', { sent: sendJob.sent, failed: sendJob.failed, total: sendJob.total, aborted: sendJob.aborted });
 }
