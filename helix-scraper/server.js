@@ -15,9 +15,10 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Paths ──
-const SENT_PATH     = path.join(config.OUTPUT_DIR, 'sent.json');
-const TEMPLATE_PATH = path.join(config.OUTPUT_DIR, 'template.json');
-const SETTINGS_PATH = path.join(config.OUTPUT_DIR, 'last-settings.json');
+const SENT_PATH       = path.join(config.OUTPUT_DIR, 'sent.json');
+const TEMPLATE_PATH   = path.join(config.OUTPUT_DIR, 'template.json');
+const SETTINGS_PATH   = path.join(config.OUTPUT_DIR, 'last-settings.json');
+const SEND_QUEUE_PATH = path.join(config.OUTPUT_DIR, 'send-queue.json');
 
 function ensureOutputDir() {
   if (!fs.existsSync(config.OUTPUT_DIR)) fs.mkdirSync(config.OUTPUT_DIR, { recursive: true });
@@ -181,6 +182,19 @@ function buildEmailHtml(subject, bodyText, lead, tpl) {
 </html>`;
 }
 function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Send queue persistence ──
+function saveSendQueue(queue, index, opts) {
+  ensureOutputDir();
+  fs.writeFileSync(SEND_QUEUE_PATH, JSON.stringify({ queue, index, opts }));
+}
+function clearSendQueue() {
+  try { fs.unlinkSync(SEND_QUEUE_PATH); } catch {}
+}
+function loadSendQueue() {
+  try { return JSON.parse(fs.readFileSync(SEND_QUEUE_PATH, 'utf8')); }
+  catch { return null; }
+}
 
 // ── Active send job (one at a time) ──
 let sendJob = null;
@@ -394,7 +408,7 @@ app.delete('/api/sent', (req, res) => {
 app.post('/api/send/start', async (req, res) => {
   if (sendJob && sendJob.running) return res.status(409).json({ error: 'A send job is already running' });
 
-  const { leads, delayMin = 4000, delayMax = 9000 } = req.body;
+  const { leads, delayMin = 2000, delayMax = 5000 } = req.body;
 
   if (!Array.isArray(leads) || leads.length === 0) return res.status(400).json({ error: 'No leads provided' });
 
@@ -420,78 +434,10 @@ app.post('/api/send/start', async (req, res) => {
 
   res.json({ ok: true, queued: queue.length, alreadySent: sendJob.skipped });
 
-  // Run in background, stream progress via /api/send/events
-  (async () => {
-    for (const lead of queue) {
-      if (sendJob.aborted) break;
+  // Persist queue so it survives server restarts
+  saveSendQueue(queue, 0, { delayMin, delayMax });
 
-      try {
-        const subject  = applyMergeTags(tpl.subject, lead, tpl);
-        const bodyText = applyMergeTags(tpl.body, lead, tpl);
-        const firstName = (lead.ownerName || '').split(' ')[0] || 'there';
-
-        const bodyHtml = buildEmailHtml(subject, bodyText, lead, tpl);
-
-        // Recipient with name if available (improves deliverability)
-        const toAddress = lead.ownerName
-          ? `${lead.ownerName} <${lead.email}>`
-          : lead.email;
-
-        const payload = {
-          from:    `${tpl.fromName} <${tpl.fromEmail}>`,
-          to:      [toAddress],
-          subject,
-          html:    bodyHtml,
-          // Plain-text is the most important spam-filter signal — keep it clean
-          text:    bodyText + `\n\n---\nBook a meeting: https://cal.com/helix-solutions/helix-app\nhelixsolution.au\n\nTo unsubscribe reply "Unsubscribe" or email ${tpl.fromEmail}`,
-          headers: {
-            // Unique message ID prevents threading across recipients
-            'X-Entity-Ref-ID':       `helix-${Date.now()}-${Math.random().toString(36).slice(2,10)}`,
-            // RFC-compliant unsubscribe (required by Gmail/Yahoo bulk sender rules)
-            'List-Unsubscribe':      `<mailto:${tpl.fromEmail}?subject=Unsubscribe>`,
-            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-            // Precedence header signals transactional, not marketing blast
-            'Precedence':            'bulk'
-          }
-        };
-
-        if (tpl.replyTo) payload.reply_to = tpl.replyTo;
-
-        await resend.emails.send(payload);
-
-        sentSet.add(lead.email.toLowerCase());
-        saveSentEmails(sentSet);
-        sendJob.sent++;
-
-        broadcastSend('send_progress', {
-          sent: sendJob.sent,
-          total: sendJob.total,
-          failed: sendJob.failed,
-          current: lead.email,
-          status: 'sent'
-        });
-
-      } catch (err) {
-        sendJob.failed++;
-        broadcastSend('send_progress', {
-          sent: sendJob.sent,
-          total: sendJob.total,
-          failed: sendJob.failed,
-          current: lead.email,
-          status: 'failed',
-          error: err.message
-        });
-      }
-
-      if (!sendJob.aborted && sendJob.sent + sendJob.failed < sendJob.total) {
-        const wait = delayMin + Math.random() * (delayMax - delayMin);
-        await delay(wait);
-      }
-    }
-
-    sendJob.running = false;
-    broadcastSend('send_done', { sent: sendJob.sent, failed: sendJob.failed, total: sendJob.total, aborted: sendJob.aborted });
-  })();
+  runSendQueue(queue, 0, { delayMin, delayMax }, resend, sentSet);
 });
 
 // Abort running send
@@ -515,6 +461,65 @@ function broadcastSend(event, data) {
   for (const c of sendSseClients) c.write(msg);
 }
 
+async function runSendQueue(queue, startIndex, opts, resend, sentSet) {
+  const { delayMin, delayMax } = opts;
+  const tpl = loadTemplate();
+  let unsavedCount = 0;
+
+  for (let i = startIndex; i < queue.length; i++) {
+    if (sendJob.aborted) break;
+    const lead = queue[i];
+
+    // Keep queue position on disk so a restart can resume from here
+    if (i % 5 === 0) saveSendQueue(queue, i, opts);
+
+    try {
+      const subject  = applyMergeTags(tpl.subject, lead, tpl);
+      const bodyText = applyMergeTags(tpl.body, lead, tpl);
+      const bodyHtml = buildEmailHtml(subject, bodyText, lead, tpl);
+      const toAddress = lead.ownerName ? `${lead.ownerName} <${lead.email}>` : lead.email;
+
+      await resend.emails.send({
+        from:    `${tpl.fromName} <${tpl.fromEmail}>`,
+        to:      [toAddress],
+        subject,
+        html:    bodyHtml,
+        text:    bodyText + `\n\n---\nBook a meeting: https://cal.com/helix-solutions/helix-app\nhelixsolution.au\n\nTo unsubscribe reply "Unsubscribe" or email ${tpl.fromEmail}`,
+        reply_to: tpl.replyTo || undefined,
+        headers: {
+          'X-Entity-Ref-ID':       `helix-${Date.now()}-${Math.random().toString(36).slice(2,10)}`,
+          'List-Unsubscribe':      `<mailto:${tpl.fromEmail}?subject=Unsubscribe>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          'Precedence':            'bulk'
+        }
+      });
+
+      sentSet.add(lead.email.toLowerCase());
+      unsavedCount++;
+      // Batch disk writes — flush every 5 sent emails
+      if (unsavedCount >= 5) { saveSentEmails(sentSet); unsavedCount = 0; }
+      sendJob.sent++;
+
+      broadcastSend('send_progress', { sent: sendJob.sent, total: sendJob.total, failed: sendJob.failed, current: lead.email, status: 'sent' });
+
+    } catch (err) {
+      sendJob.failed++;
+      broadcastSend('send_progress', { sent: sendJob.sent, total: sendJob.total, failed: sendJob.failed, current: lead.email, status: 'failed', error: err.message });
+    }
+
+    if (!sendJob.aborted && i < queue.length - 1) {
+      const wait = delayMin + Math.random() * (delayMax - delayMin);
+      await delay(wait);
+    }
+  }
+
+  // Final flush
+  if (unsavedCount > 0) saveSentEmails(sentSet);
+  clearSendQueue();
+  sendJob.running = false;
+  broadcastSend('send_done', { sent: sendJob.sent, failed: sendJob.failed, total: sendJob.total, aborted: sendJob.aborted });
+}
+
 app.get('/api/send/events', (req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive', 'X-Accel-Buffering': 'no' });
   res.write(`event: connected\ndata: ${JSON.stringify({ time: Date.now() })}\n\n`);
@@ -528,4 +533,20 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  Helix Outreach UI running at http://0.0.0.0:${PORT}\n`);
+
+  // Auto-resume any send job that was interrupted by a server restart
+  const pending = loadSendQueue();
+  if (pending && Array.isArray(pending.queue) && pending.index < pending.queue.length) {
+    const { queue, index, opts } = pending;
+    const remaining = queue.length - index;
+    console.log(`  Resuming interrupted send job from index ${index} (${remaining} remaining)`);
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('  Cannot resume — RESEND_API_KEY not set');
+      return;
+    }
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const sentSet = loadSentEmails();
+    sendJob = { running: true, total: queue.length, sent: index, skipped: 0, failed: 0, aborted: false };
+    runSendQueue(queue, index, opts, resend, sentSet);
+  }
 });

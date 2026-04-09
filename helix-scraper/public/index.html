@@ -1169,11 +1169,11 @@
     <div class="delay-row">
       <div class="form-group">
         <label>Min delay between emails (sec)</label>
-        <input type="number" id="sendDelayMin" value="4" min="2" max="60">
+        <input type="number" id="sendDelayMin" value="2" min="1" max="60">
       </div>
       <div class="form-group">
         <label>Max delay between emails (sec)</label>
-        <input type="number" id="sendDelayMax" value="9" min="2" max="120">
+        <input type="number" id="sendDelayMax" value="5" min="1" max="120">
       </div>
     </div>
 
@@ -1648,8 +1648,8 @@
     if (leads.length === 0) { alert('No unsent leads — all contacts have already been emailed.'); return; }
     if (!confirm(`Send to ${leads.length} unsent lead${leads.length !== 1 ? 's' : ''}?`)) return;
 
-    const delayMin = Math.max(2, parseInt($('sendDelayMin').value, 10) || 4) * 1000;
-    const delayMax = Math.max(delayMin, parseInt($('sendDelayMax').value, 10) || 9) * 1000;
+    const delayMin = Math.max(1, parseInt($('sendDelayMin').value, 10) || 2) * 1000;
+    const delayMax = Math.max(delayMin, parseInt($('sendDelayMax').value, 10) || 5) * 1000;
 
     try {
       const startRes = await fetch('/api/send/start', {
