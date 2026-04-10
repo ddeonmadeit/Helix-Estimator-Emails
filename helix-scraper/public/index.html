@@ -1786,6 +1786,20 @@
   initLeads();
   loadLocalSent();
   refreshSendMeta();
+
+  // Sync server's sent.json into localStorage — catches emails sent while browser was closed
+  fetch('/api/sent')
+    .then(r => r.json())
+    .then(({ emails }) => {
+      if (!emails || !emails.length) return;
+      let changed = false;
+      for (const e of emails) {
+        const lc = e.toLowerCase();
+        if (!localSentEmails.has(lc)) { localSentEmails.add(lc); changed = true; }
+      }
+      if (changed) { persistLocalSent(); refreshSendMeta(); }
+    })
+    .catch(() => {});
 </script>
 </body>
 </html>
