@@ -448,6 +448,40 @@ app.delete('/api/sent', (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/sent/sync — pull sent history from Resend API and persist locally
+app.get('/api/sent/sync', async (req, res) => {
+  if (!process.env.RESEND_API_KEY) return res.status(400).json({ error: 'RESEND_API_KEY not set' });
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  try {
+    const sentSet = loadSentEmails();
+    let page = 0;
+    const pageSize = 100;
+    let fetched = 0;
+
+    // Resend paginates — keep pulling until we get fewer than pageSize
+    while (true) {
+      const result = await resend.emails.list({ limit: pageSize, offset: page * pageSize });
+      const items = result?.data?.data || result?.data || [];
+      if (!Array.isArray(items) || items.length === 0) break;
+      for (const item of items) {
+        const to = Array.isArray(item.to) ? item.to : [item.to];
+        for (const addr of to) {
+          const email = (addr || '').replace(/^.*<|>$/g, '').toLowerCase().trim();
+          if (email) sentSet.add(email);
+        }
+      }
+      fetched += items.length;
+      if (items.length < pageSize) break;
+      page++;
+    }
+
+    saveSentEmails(sentSet);
+    res.json({ ok: true, total: sentSet.size, fetched });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/leads/remove-sent — bulk-add emails to sent.json (history recovery)
 app.post('/api/leads/remove-sent', (req, res) => {
   const { emails } = req.body;

@@ -1198,6 +1198,7 @@
         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline;vertical-align:middle;margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         Send Test Email
       </button>
+      <button class="btn" id="btnSyncResend" style="background:var(--bg-glass);border:1px solid var(--border);color:var(--text-muted)">Sync from Resend</button>
       <button class="btn" id="btnClearSent" style="background:var(--bg-glass);border:1px solid var(--border);color:var(--text-muted)">Clear Sent History</button>
       <button class="btn" id="btnMarkAllSent" style="background:var(--bg-glass);border:1px solid var(--border);color:var(--text-muted)">Mark All as Sent</button>
     </div>
@@ -1728,6 +1729,30 @@
     refreshSendMeta();
     addSendLog('Sent history cleared', 'info');
     $('sendProgressWrap').classList.add('visible');
+  });
+
+  $('btnSyncResend').addEventListener('click', async () => {
+    const btn = $('btnSyncResend');
+    btn.disabled = true;
+    btn.textContent = 'Syncing…';
+    $('sendProgressWrap').classList.add('visible');
+    try {
+      const r = await fetch('/api/sent/sync');
+      const d = await r.json();
+      if (!r.ok) { addSendLog(`Sync failed: ${d.error}`, 'fail'); return; }
+      // Merge the server's newly-populated sent list into localStorage
+      const r2 = await fetch('/api/sent');
+      const { emails } = await r2.json();
+      for (const e of emails) localSentEmails.add(e.toLowerCase());
+      persistLocalSent();
+      refreshSendMeta();
+      addSendLog(`Synced ${d.total} sent emails from Resend (fetched ${d.fetched} records)`, 'info');
+    } catch (err) {
+      addSendLog(`Sync error: ${err.message}`, 'fail');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sync from Resend';
+    }
   });
 
   $('btnMarkAllSent').addEventListener('click', async () => {
