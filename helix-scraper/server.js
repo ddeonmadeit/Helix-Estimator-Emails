@@ -448,6 +448,16 @@ app.delete('/api/sent', (req, res) => {
   res.json({ ok: true });
 });
 
+// POST /api/leads/remove-sent — bulk-add emails to sent.json (history recovery)
+app.post('/api/leads/remove-sent', (req, res) => {
+  const { emails } = req.body;
+  if (!Array.isArray(emails)) return res.status(400).json({ error: 'emails array required' });
+  const sentSet = loadSentEmails();
+  for (const e of emails) sentSet.add(e.toLowerCase().trim());
+  saveSentEmails(sentSet);
+  res.json({ ok: true, total: sentSet.size });
+});
+
 // ═══════════════════════════════════════════════
 // Bulk send (SSE stream)
 // ═══════════════════════════════════════════════

@@ -1199,6 +1199,7 @@
         Send Test Email
       </button>
       <button class="btn" id="btnClearSent" style="background:var(--bg-glass);border:1px solid var(--border);color:var(--text-muted)">Clear Sent History</button>
+      <button class="btn" id="btnMarkAllSent" style="background:var(--bg-glass);border:1px solid var(--border);color:var(--text-muted)">Mark All as Sent</button>
     </div>
   </div>
 
@@ -1726,6 +1727,24 @@
     await fetch('/api/sent', { method: 'DELETE' });
     refreshSendMeta();
     addSendLog('Sent history cleared', 'info');
+    $('sendProgressWrap').classList.add('visible');
+  });
+
+  $('btnMarkAllSent').addEventListener('click', async () => {
+    const count = cachedLeads.filter(l => l.email).length;
+    if (!confirm(`Mark all ${count} leads as already sent? Use this to restore history that was lost after a server restart.`)) return;
+    const emails = cachedLeads.filter(l => l.email).map(l => l.email.toLowerCase());
+    for (const e of emails) localSentEmails.add(e);
+    persistLocalSent();
+    try {
+      await fetch('/api/leads/remove-sent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails })
+      });
+    } catch {}
+    refreshSendMeta();
+    addSendLog(`Marked ${emails.length} leads as sent`, 'info');
     $('sendProgressWrap').classList.add('visible');
   });
 
